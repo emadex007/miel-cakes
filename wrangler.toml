@@ -9,7 +9,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "miel_cakes_db"
-database_id = "b8937778-3650-4cd2-bbc2-2df0e6987b9f"
+database_id = "2f5a1e77-24b4-4410-b87f-7612a7544b91"
 migrations_dir = "migrations"
 
 # --- R2 bucket (menu photos, videos, logo, gallery) ---

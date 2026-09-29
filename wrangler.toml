@@ -1,0 +1,29 @@
+name = "miel-cakes"
+main = "./src/server.ts"
+compatibility_date = "2025-09-02"
+compatibility_flags = ["nodejs_compat"]
+
+# --- D1 database (settings, menu, delivery areas, customers, orders, bookings) ---
+# Create with:  npx wrangler d1 create miel_cakes_db
+# then paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "miel_cakes_db"
+database_id = "b8937778-3650-4cd2-bbc2-2df0e6987b9f"
+migrations_dir = "migrations"
+
+# --- R2 bucket (menu photos, videos, logo, gallery) ---
+# Create with:  npx wrangler r2 bucket create miel-cakes-media
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "miel-cakes-media"
+
+[observability]
+enabled = true
+
+# --- Secrets: set with `npx wrangler secret put <NAME>`, never commit them ---
+# PAYSTACK_SECRET_KEY   Paystack checkout and booking deposits   (Phase 3)
+# RESEND_API_KEY        order and booking emails                 (Phase 5)
+
+[vars]
+SITE_ENV = "production"

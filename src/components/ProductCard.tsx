@@ -16,7 +16,7 @@ export function ProductCard({ p }: { p: Product }) {
         )}
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           {soldOut ? (
-            <span className="rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream">Sold out today</span>
+            <span className="rounded-full bg-highlight px-2.5 py-1 text-xs font-bold text-white">Sold out today</span>
           ) : p.availability === 'preorder' ? (
             <span className="rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-cocoa">
               Order {p.notice_days > 0 ? `${p.notice_days} day${p.notice_days > 1 ? 's' : ''} ahead` : 'ahead'}

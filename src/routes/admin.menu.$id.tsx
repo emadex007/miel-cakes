@@ -58,7 +58,7 @@ function ProductEditor() {
 
   return (
     <>
-      <Link to="/admin/menu" className="text-sm font-semibold text-[#85726d] hover:text-cocoa">
+      <Link to="/admin/menu" className="text-sm font-semibold text-[#667085] hover:text-cocoa">
         ← All menu items
       </Link>
       <div className="mt-3">
@@ -108,7 +108,7 @@ function ProductEditor() {
                   />
                   <button
                     type="button"
-                    className="px-2 text-xl text-[#a8958f] hover:text-red-700 disabled:opacity-30"
+                    className="px-2 text-xl text-[#98a2b3] hover:text-red-700 disabled:opacity-30"
                     onClick={() => set('options', form.options.filter((_, i) => i !== n))}
                     disabled={form.options.length === 1}
                     aria-label={`Remove size ${n + 1}`}

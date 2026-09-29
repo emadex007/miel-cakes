@@ -131,7 +131,7 @@ export function Reveal({
   )
 }
 
-const SPRINKLE_COLOURS = ['var(--c-primary)', 'var(--c-accent)', '#F2B8C9', '#7FB069', '#6FB7D6', '#ffffff']
+const SPRINKLE_COLOURS = ['var(--c-primary)', 'var(--c-accent)', 'var(--c-highlight)', '#ffffff', '#93C5FD', '#FDE68A']
 
 /** Fires a sprinkle burst from an element. */
 export function burstSprinkles(host: HTMLElement) {

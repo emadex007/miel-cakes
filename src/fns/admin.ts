@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start'
+﻿import { createServerFn } from '@tanstack/react-start'
 import { slugify } from '~/lib/format'
 import type { AdminUser, MediaItem, ProductOption } from '~/lib/types'
 import {
@@ -41,7 +41,7 @@ export const hasAnyAdmin = createServerFn({ method: 'GET' }).handler(async () =>
 })
 
 export const setupOwner = createServerFn({ method: 'POST' })
-  .inputValidator((d: { name: string; email: string; password: string }) => d)
+  .validator((d: { name: string; email: string; password: string }) => d)
   .handler(async ({ data }) => {
     const row = await db().prepare('SELECT COUNT(*) AS n FROM admins').first<{ n: number }>()
     if ((row?.n ?? 0) > 0) throw new Error('The owner account already exists. Sign in instead.')
@@ -56,7 +56,7 @@ export const setupOwner = createServerFn({ method: 'POST' })
   })
 
 export const adminLogin = createServerFn({ method: 'POST' })
-  .inputValidator((d: { email: string; password: string }) => d)
+  .validator((d: { email: string; password: string }) => d)
   .handler(async ({ data }) => {
     const row = await db()
       .prepare('SELECT id, password_hash FROM admins WHERE email = ?')
@@ -86,10 +86,27 @@ export const getDashboard = createServerFn({ method: 'GET' }).handler(async () =
     count('SELECT COUNT(*) AS n FROM media'),
     loadSettings(),
   ])
+  const month = new Date().toISOString().slice(0, 7)
+  const [ordersToAct, newQuotes, newApplications, clients, monthRow] = await Promise.all([
+    count("SELECT COUNT(*) AS n FROM orders WHERE status IN ('awaiting_confirmation', 'received', 'baking', 'ready', 'out_for_delivery')"),
+    count("SELECT COUNT(*) AS n FROM quote_requests WHERE status = 'new'"),
+    count("SELECT COUNT(*) AS n FROM job_applications WHERE status = 'new'"),
+    count('SELECT COUNT(*) AS n FROM clients'),
+    db()
+      .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(amount_paid), 0) AS paid FROM receipts WHERE substr(issued_on, 1, 7) = ?")
+      .bind(month)
+      .first<{ n: number; paid: number }>(),
+  ])
   const sampleImages = await count(
     "SELECT COUNT(*) AS n FROM products WHERE image_url LIKE '%unsplash.com%' OR image_url LIKE '%pexels.com%'",
   )
   return {
+    ordersToAct,
+    newQuotes,
+    newApplications,
+    clients,
+    monthReceipts: monthRow?.n ?? 0,
+    monthPaid: monthRow?.paid ?? 0,
     products,
     soldOut,
     categories,
@@ -113,7 +130,7 @@ export const getAdminSettings = createServerFn({ method: 'GET' }).handler(async 
 })
 
 export const updateSettings = createServerFn({ method: 'POST' })
-  .inputValidator((d: Record<string, string>) => d)
+  .validator((d: Record<string, string>) => d)
   .handler(async ({ data }) => {
     await requireAdmin()
     await saveSettings(data)
@@ -127,7 +144,7 @@ export const listCategories = createServerFn({ method: 'GET' }).handler(async ()
 })
 
 export const saveCategory = createServerFn({ method: 'POST' })
-  .inputValidator(
+  .validator(
     (d: { id?: number; name: string; description: string; image_url: string; sort: number; is_active: number | boolean }) => d,
   )
   .handler(async ({ data }) => {
@@ -152,7 +169,7 @@ export const saveCategory = createServerFn({ method: 'POST' })
   })
 
 export const deleteCategory = createServerFn({ method: 'POST' })
-  .inputValidator((id: number) => int(id))
+  .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
     await requireAdmin()
     const used = await db().prepare('SELECT COUNT(*) AS n FROM products WHERE category_id = ?').bind(id).first<{ n: number }>()
@@ -171,7 +188,7 @@ export const listProductsAdmin = createServerFn({ method: 'GET' }).handler(async
 })
 
 export const getProductAdmin = createServerFn({ method: 'GET' })
-  .inputValidator((id: string) => String(id))
+  .validator((id: string) => String(id))
   .handler(async ({ data: id }) => {
     await requireAdmin()
     const categories = await queryCategories(false)
@@ -196,7 +213,7 @@ export interface ProductInput {
 }
 
 export const saveProduct = createServerFn({ method: 'POST' })
-  .inputValidator((d: ProductInput) => d)
+  .validator((d: ProductInput) => d)
   .handler(async ({ data }) => {
     await requireAdmin()
     const name = str(data.name, 120)
@@ -244,7 +261,7 @@ export const saveProduct = createServerFn({ method: 'POST' })
   })
 
 export const toggleProductFlag = createServerFn({ method: 'POST' })
-  .inputValidator((d: { id: number; field: 'is_available' | 'featured'; value: boolean }) => d)
+  .validator((d: { id: number; field: 'is_available' | 'featured'; value: boolean }) => d)
   .handler(async ({ data }) => {
     await requireAdmin()
     const field = data.field === 'featured' ? 'featured' : 'is_available'
@@ -256,7 +273,7 @@ export const toggleProductFlag = createServerFn({ method: 'POST' })
   })
 
 export const deleteProduct = createServerFn({ method: 'POST' })
-  .inputValidator((id: number) => int(id))
+  .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
     await requireAdmin()
     await db().batch([
@@ -274,7 +291,7 @@ export const listZonesAdmin = createServerFn({ method: 'GET' }).handler(async ()
 })
 
 export const saveZone = createServerFn({ method: 'POST' })
-  .inputValidator((d: { id?: number; name: string; fee: number; is_active: number | boolean; sort: number }) => d)
+  .validator((d: { id?: number; name: string; fee: number; is_active: number | boolean; sort: number }) => d)
   .handler(async ({ data }) => {
     await requireAdmin()
     const name = str(data.name, 80)
@@ -289,7 +306,7 @@ export const saveZone = createServerFn({ method: 'POST' })
   })
 
 export const deleteZone = createServerFn({ method: 'POST' })
-  .inputValidator((id: number) => int(id))
+  .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
     await requireAdmin()
     const used = await db()
@@ -311,7 +328,7 @@ export const listAdmins = createServerFn({ method: 'GET' }).handler(async () => 
 })
 
 export const addAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d: { name: string; email: string; password: string }) => d)
+  .validator((d: { name: string; email: string; password: string }) => d)
   .handler(async ({ data }) => {
     const me = await requireAdmin()
     if (me.role !== 'owner') throw new Error('Only the owner can add staff accounts.')
@@ -328,7 +345,7 @@ export const addAdmin = createServerFn({ method: 'POST' })
   })
 
 export const removeAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((id: number) => int(id))
+  .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
     const me = await requireAdmin()
     if (me.role !== 'owner') throw new Error('Only the owner can remove staff accounts.')
@@ -341,7 +358,7 @@ export const removeAdmin = createServerFn({ method: 'POST' })
   })
 
 export const changeMyPassword = createServerFn({ method: 'POST' })
-  .inputValidator((d: { current: string; next: string }) => d)
+  .validator((d: { current: string; next: string }) => d)
   .handler(async ({ data }) => {
     const me = await requireAdmin()
     const row = await db().prepare('SELECT password_hash FROM admins WHERE id = ?').bind(me.id).first<{ password_hash: string }>()
@@ -362,7 +379,7 @@ export const listMedia = createServerFn({ method: 'GET' }).handler(async (): Pro
 })
 
 export const deleteMedia = createServerFn({ method: 'POST' })
-  .inputValidator((id: number) => int(id))
+  .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
     await requireAdmin()
     const row = await db().prepare('SELECT key FROM media WHERE id = ?').bind(id).first<{ key: string }>()

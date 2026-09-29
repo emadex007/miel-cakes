@@ -1,6 +1,7 @@
-import { createServerFn } from '@tanstack/react-start'
+﻿import { createServerFn } from '@tanstack/react-start'
 import { notFound } from '@tanstack/react-router'
-import { queryCategories, queryProducts, queryZones } from '~/server/db'
+import type { GalleryItem, Review } from '~/lib/types'
+import { db, queryCategories, queryProducts, queryZones } from '~/server/db'
 import { loadSettings } from '~/server/settings'
 
 export const getSiteSettings = createServerFn({ method: 'GET' }).handler(async () => {
@@ -8,12 +9,20 @@ export const getSiteSettings = createServerFn({ method: 'GET' }).handler(async (
 })
 
 export const getHomeData = createServerFn({ method: 'GET' }).handler(async () => {
-  const [categories, featured, zones] = await Promise.all([
+  const [categories, featured, zones, gallery, reviews] = await Promise.all([
     queryCategories(true),
     queryProducts('WHERE p.featured = 1 AND c.is_active = 1'),
     queryZones(true),
+    db()
+      .prepare('SELECT * FROM gallery_items ORDER BY featured DESC, sort, id DESC LIMIT 6')
+      .all<GalleryItem>()
+      .then((r) => r.results),
+    db()
+      .prepare('SELECT * FROM reviews WHERE is_visible = 1 ORDER BY sort, id DESC LIMIT 9')
+      .all<Review>()
+      .then((r) => r.results),
   ])
-  return { categories, featured: featured.slice(0, 8), zones }
+  return { categories, featured: featured.slice(0, 8), zones, gallery, reviews }
 })
 
 export const getMenu = createServerFn({ method: 'GET' }).handler(async () => {
@@ -25,7 +34,7 @@ export const getMenu = createServerFn({ method: 'GET' }).handler(async () => {
 })
 
 export const getProduct = createServerFn({ method: 'GET' })
-  .inputValidator((slug: string) => String(slug))
+  .validator((slug: string) => String(slug))
   .handler(async ({ data: slug }) => {
     const [product] = await queryProducts('WHERE p.slug = ? AND c.is_active = 1', [slug])
     if (!product) throw notFound()

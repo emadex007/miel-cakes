@@ -40,3 +40,10 @@ export function whatsappLink(number: string, message: string) {
 }
 
 export const isVideoUrl = (url: string) => /\.(mp4|webm|mov)(\?|$)/i.test(url) || url.includes('videos.pexels.com')
+
+/** Turns a Nigerian local number (0801…) into international format (234801…) for WhatsApp links. */
+export function toIntlPhone(phone: string) {
+  const d = (phone || '').replace(/\D/g, '')
+  if (d.startsWith('0') && d.length === 11) return `234${d.slice(1)}`
+  return d
+}

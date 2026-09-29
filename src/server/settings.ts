@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, FIELD_KEYS, isHexColor, type SiteSettings } from '~/lib/site-fields'
+import { COLOR_KEYS, DEFAULT_SETTINGS, FIELD_KEYS, isHexColor, type SiteSettings } from '~/lib/site-fields'
 import { db } from './db'
 
 export async function loadSettings(): Promise<SiteSettings> {
@@ -8,7 +8,7 @@ export async function loadSettings(): Promise<SiteSettings> {
     if (FIELD_KEYS.has(row.key)) settings[row.key] = row.value
   }
   // Never let a bad colour value break the site's styles.
-  for (const key of ['color_primary', 'color_accent', 'color_dark', 'color_cream']) {
+  for (const key of COLOR_KEYS) {
     if (!isHexColor(settings[key])) settings[key] = DEFAULT_SETTINGS[key]
   }
   return settings
@@ -20,7 +20,7 @@ export async function saveSettings(values: Record<string, string>) {
     if (!FIELD_KEYS.has(key)) continue
     const value = String(raw ?? '').slice(0, 20_000)
     if (key.startsWith('color_') && !isHexColor(value)) {
-      throw new Error(`"${value}" isn't a valid colour. Use the colour picker or a code like #B8325A.`)
+      throw new Error(`"${value}" isn't a valid colour. Use the colour picker or a code like #1D4ED8.`)
     }
     statements.push(
       db()

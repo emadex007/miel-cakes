@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { PageTitle } from '~/components/admin/ui'
 import { getDashboard } from '~/fns/admin'
+import { formatNaira } from '~/lib/format'
 
 export const Route = createFileRoute('/admin/')({
   loader: () => getDashboard(),
@@ -11,10 +12,11 @@ function Overview() {
   const d = Route.useLoaderData()
   const { admin } = Route.useRouteContext()
   const tiles = [
-    { label: 'Menu items', value: d.products, to: '/admin/menu' as const, note: d.soldOut ? `${d.soldOut} sold out` : 'All available' },
-    { label: 'Categories', value: d.categories, to: '/admin/categories' as const, note: 'Cakes, small chops…' },
-    { label: 'Delivery areas', value: d.zones, to: '/admin/delivery' as const, note: 'Active in Abuja' },
-    { label: 'Uploaded files', value: d.mediaCount, to: '/admin/media' as const, note: 'Photos & videos' },
+    { label: 'Orders to handle', value: String(d.ordersToAct), to: '/admin/orders' as const, note: d.ordersToAct ? 'Confirm, bake, deliver' : 'All done' },
+    { label: 'New quote requests', value: String(d.newQuotes), to: '/admin/quotes' as const, note: d.newQuotes ? 'Waiting for your reply' : 'All answered' },
+    { label: 'Received this month', value: formatNaira(d.monthPaid), to: '/admin/receipts' as const, note: `${d.monthReceipts} receipt${d.monthReceipts === 1 ? '' : 's'}` },
+    { label: 'Customers', value: String(d.clients), to: '/admin/customers' as const, note: 'In your records' },
+    { label: 'New job applications', value: String(d.newApplications), to: '/admin/careers' as const, note: d.newApplications ? 'Waiting for review' : 'All reviewed' },
   ]
   const checklist = [
     { done: d.checklist.whatsapp, text: 'Add your WhatsApp number so customers can order', to: '/admin/settings' as const },
@@ -35,12 +37,12 @@ function Overview() {
         Everything customers see on the website is edited from here.
       </PageTitle>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {tiles.map((t) => (
-          <Link key={t.label} to={t.to} className="admin-card p-5 transition hover:border-brand">
-            <p className="text-sm font-semibold text-[#85726d]">{t.label}</p>
-            <p className="mt-2 font-display text-4xl tabular text-cocoa">{t.value}</p>
-            <p className="mt-1 text-sm text-[#85726d]">{t.note}</p>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        {tiles.map((t, i) => (
+          <Link key={t.label} to={t.to} className={`admin-card p-5 transition hover:border-brand ${i === tiles.length - 1 ? 'col-span-2 lg:col-span-1' : ''}`}>
+            <p className="text-sm font-semibold text-[#667085]">{t.label}</p>
+            <p className="mt-2 font-display text-3xl tabular text-cocoa sm:text-4xl">{t.value}</p>
+            <p className="mt-1 text-sm text-[#667085]">{t.note}</p>
           </Link>
         ))}
       </div>
@@ -48,20 +50,20 @@ function Overview() {
       <section className="admin-card mt-8 p-6 sm:p-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold">Get the website ready</h2>
-          <span className="text-sm font-semibold text-[#85726d]">{remaining === 0 ? 'All done' : `${remaining} left`}</span>
+          <span className="text-sm font-semibold text-[#667085]">{remaining === 0 ? 'All done' : `${remaining} left`}</span>
         </div>
-        <ul className="mt-4 divide-y divide-[#f1e9e6]">
+        <ul className="mt-4 divide-y divide-[#eceff5]">
           {checklist.map((c) => (
             <li key={c.text} className="flex items-center gap-3 py-3">
               <span
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  c.done ? 'bg-emerald-600 text-white' : 'border-2 border-[#ddd3cf]'
+                  c.done ? 'bg-emerald-600 text-white' : 'border-2 border-[#d0d5e2]'
                 }`}
                 aria-label={c.done ? 'Done' : 'To do'}
               >
                 {c.done ? '✓' : ''}
               </span>
-              <span className={`flex-1 ${c.done ? 'text-[#a8958f] line-through' : ''}`}>{c.text}</span>
+              <span className={`flex-1 ${c.done ? 'text-[#98a2b3] line-through' : ''}`}>{c.text}</span>
               {!c.done && (
                 <Link to={c.to} className="text-sm font-semibold text-brand hover:underline">
                   Fix
@@ -72,12 +74,11 @@ function Overview() {
         </ul>
       </section>
 
-      <section className="mt-8 rounded-2xl bg-[#f3ece9] p-6 text-sm leading-relaxed text-[#5b4944]">
+      <section className="mt-8 rounded-2xl bg-[#eef1f7] p-6 text-sm leading-relaxed text-[#475467]">
         <p className="font-bold text-cocoa">What&rsquo;s coming in the next updates</p>
         <p className="mt-2">
-          Customer accounts and cart, Paystack checkout with pickup or delivery, event bookings with deposits, and live order
-          tracking. Until then, the “Order on WhatsApp” buttons send orders straight to your WhatsApp with the item, size and
-          price filled in.
+          Event bookings with deposits. Customers can already order online (bank transfer with proof upload, or Paystack once
+          switched on), track their orders, and ask for quotes. Big event orders go through quote requests for now.
         </p>
       </section>
     </>

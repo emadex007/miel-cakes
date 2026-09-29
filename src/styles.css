@@ -3,10 +3,13 @@
 /* Brand colours come from the admin dashboard (Settings → Business & branding).
    The root layout writes them into these variables. */
 :root {
-  --c-primary: #b8325a;
-  --c-accent: #e3a82b;
-  --c-dark: #3a2320;
-  --c-cream: #fff7f2;
+  --c-primary: #1d4ed8;
+  --c-hover: #facc15;
+  --c-hover-text: #0f1e3d;
+  --c-accent: #facc15;
+  --c-highlight: #dc2626;
+  --c-dark: #0f1e3d;
+  --c-cream: #fffcf5;
   --c-muted: color-mix(in srgb, var(--c-dark) 62%, var(--c-cream));
   --c-line: color-mix(in srgb, var(--c-dark) 12%, var(--c-cream));
   --c-soft: color-mix(in srgb, var(--c-primary) 10%, var(--c-cream));
@@ -17,6 +20,8 @@
 @theme inline {
   --color-brand: var(--c-primary);
   --color-accent: var(--c-accent);
+  --color-highlight: var(--c-highlight);
+  --color-hover: var(--c-hover);
   --color-cocoa: var(--c-dark);
   --color-cream: var(--c-cream);
   --color-muted: var(--c-muted);
@@ -69,8 +74,22 @@ h3 {
   color: #fff;
   box-shadow: 0 6px 18px -8px var(--c-primary);
 }
-.btn-primary:hover {
-  background: color-mix(in srgb, var(--c-primary) 88%, #000);
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: var(--c-hover);
+  color: var(--c-hover-text);
+  box-shadow: 0 8px 22px -10px var(--c-hover);
+}
+.btn-light:hover,
+.btn-light:focus-visible {
+  background: var(--c-hover);
+  color: var(--c-hover-text);
+}
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+  background: var(--c-hover);
+  color: var(--c-hover-text);
+  box-shadow: inset 0 0 0 1.5px var(--c-hover);
 }
 .btn-light {
   background: #fff;
@@ -280,11 +299,11 @@ h3 {
 .admin-input {
   width: 100%;
   border-radius: 0.6rem;
-  border: 1px solid #ddd3cf;
+  border: 1px solid #d0d5e2;
   background: #fff;
   padding: 0.6rem 0.75rem;
   font-size: 0.95rem;
-  color: #2b1d1b;
+  color: #1b2437;
 }
 .admin-input:focus {
   outline: none;
@@ -300,15 +319,51 @@ textarea.admin-input {
   font-size: 0.85rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
-  color: #3b2a27;
+  color: #344054;
 }
 .admin-help {
   font-size: 0.8rem;
-  color: #85726d;
+  color: #667085;
   margin-top: 0.3rem;
 }
 .admin-card {
   background: #fff;
-  border: 1px solid #ece3df;
+  border: 1px solid #e3e7f0;
   border-radius: 1rem;
+}
+
+/* ---------- gallery lightbox ---------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--c-dark) 92%, transparent);
+  animation: fade 0.2s ease;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- printing (receipts, customer lists) ---------- */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+  @page {
+    margin: 14mm;
+  }
 }

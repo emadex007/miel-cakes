@@ -1,9 +1,12 @@
-import { Link, createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { Reveal, burstSprinkles } from '~/components/motion'
+import { PaymentInfo } from '~/components/PaymentInfo'
 import { ProductCard } from '~/components/ProductCard'
 import { WhatsAppIcon } from '~/components/icons'
 import { getProduct } from '~/fns/public'
+import { addToCart } from '~/fns/shop'
+import { savePendingItem, useShop } from '~/components/Shop'
 import { formatNaira, whatsappLink } from '~/lib/format'
 
 const root = getRouteApi('__root__')
@@ -28,7 +31,34 @@ function ProductPage() {
   const [optIndex, setOptIndex] = useState(0)
   const [qty, setQty] = useState(1)
   const [note, setNote] = useState('')
-  const btnRef = useRef<HTMLAnchorElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const router = useRouter()
+  const { setCartCount } = useShop()
+  const [adding, setAdding] = useState(false)
+  const [added, setAdded] = useState(false)
+  const [addError, setAddError] = useState('')
+
+  async function addItem() {
+    if (!option) return
+    setAdding(true)
+    setAddError('')
+    const item = { product_id: p.id, option_label: option.label, qty, note: note.trim() }
+    try {
+      const r = await addToCart({ data: item })
+      if (r.needLogin) {
+        savePendingItem(item)
+        router.navigate({ to: '/login', search: { redirect: `/menu/${p.slug}` } })
+        return
+      }
+      setCartCount(r.cartCount)
+      setAdded(true)
+      if (btnRef.current) burstSprinkles(btnRef.current)
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Could not add to cart. Try again.')
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const option = p.options[optIndex] ?? p.options[0]
   const total = (option?.price ?? 0) * qty
@@ -109,30 +139,47 @@ function ProductPage() {
             />
           </label>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             {soldOut ? (
               <span className="btn btn-primary" aria-disabled="true" style={{ opacity: 0.55 }}>Sold out today</span>
-            ) : wa ? (
-              <a
-                ref={btnRef}
-                href={wa}
-                target="_blank"
-                rel="noopener"
-                className="btn btn-primary sprinkle-host !px-7 !py-4 text-base"
-                onClick={() => btnRef.current && burstSprinkles(btnRef.current)}
-              >
-                <WhatsAppIcon /> Order on WhatsApp · <span className="tabular">{formatNaira(total)}</span>
-              </a>
             ) : (
-              <p className="rounded-2xl bg-honey px-4 py-3 text-sm">
-                Online ordering is being set up. Call us{s.phone ? ` on ${s.phone}` : ''} to order.
-              </p>
+              <>
+                <button
+                  ref={btnRef}
+                  type="button"
+                  onClick={addItem}
+                  disabled={adding}
+                  className="btn btn-primary sprinkle-host !px-7 !py-4 text-base"
+                >
+                  {adding ? 'Adding…' : added ? 'Added. Add another' : 'Add to cart'} · <span className="tabular">{formatNaira(total)}</span>
+                </button>
+                {wa && (
+                  <a href={wa} target="_blank" rel="noopener" className="btn btn-ghost !py-4 text-cocoa">
+                    <WhatsAppIcon /> Order on WhatsApp
+                  </a>
+                )}
+              </>
             )}
           </div>
+          {added && (
+            <p className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-honey px-4 py-3 text-sm font-semibold" role="status">
+              Added to your cart.
+              <Link to="/cart" className="text-brand hover:underline">View cart →</Link>
+              <Link to="/menu" className="text-cocoa/70 hover:text-brand">Keep shopping</Link>
+            </p>
+          )}
+          {addError && <p role="alert" className="mt-4 rounded-2xl bg-highlight/10 px-4 py-3 text-sm font-semibold text-highlight">{addError}</p>}
           <p className="mt-4 text-sm text-muted">
             Pickup is free. Delivery fees depend on your area. <Link to="/contact" className="font-semibold text-brand hover:underline">See delivery fees</Link>
           </p>
-          {s.order_note && <p className="mt-6 rounded-2xl bg-white p-4 text-sm text-cocoa/80 ring-1 ring-line">{s.order_note}</p>}
+          {s.order_note && <p className="mt-6 rounded-2xl bg-honey p-4 text-sm text-cocoa/85">{s.order_note}</p>}
+          <div className="mt-6">
+            <PaymentInfo s={s} compact />
+          </div>
+          <p className="mt-4 text-sm text-muted">
+            Want something custom for an occasion?{' '}
+            <Link to="/contact" hash="quote" className="font-semibold text-brand hover:underline">Get a quote</Link>
+          </p>
         </div>
       </div>
 

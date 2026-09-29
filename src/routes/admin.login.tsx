@@ -49,7 +49,7 @@ function LoginPage() {
         </button>
       </form>
       <p className="mt-6 text-center text-sm">
-        <a href="/" className="font-semibold text-[#85726d] hover:text-cocoa">← Back to website</a>
+        <a href="/" className="font-semibold text-[#667085] hover:text-cocoa">← Back to website</a>
       </p>
     </div>
   )

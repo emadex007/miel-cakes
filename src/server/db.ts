@@ -66,3 +66,6 @@ export async function uniqueSlug(table: 'products' | 'categories', base: string,
   }
   return `${base}-${Date.now()}`
 }
+
+/** Worker environment (bindings and secrets such as PAYSTACK_SECRET_KEY). Server only. */
+export const workerEnv = () => env

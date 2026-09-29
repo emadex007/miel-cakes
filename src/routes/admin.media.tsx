@@ -81,12 +81,12 @@ function MediaAdmin() {
         Photos up to 15 MB, videos up to 90 MB.
       </PageTitle>
       <div className="mb-4 space-y-2">
-        {progress && <p className="rounded-xl bg-[#f3ece9] px-4 py-3 text-sm font-medium">{progress}</p>}
+        {progress && <p className="rounded-xl bg-[#eef1f7] px-4 py-3 text-sm font-medium">{progress}</p>}
         <Messages error={error} notice={notice} />
       </div>
 
       {items.length === 0 ? (
-        <div className="admin-card p-10 text-center text-[#85726d]">
+        <div className="admin-card p-10 text-center text-[#667085]">
           No uploads yet. Your own photos sell your food best, so start by uploading pictures of your cakes and small chops.
         </div>
       ) : (
@@ -94,13 +94,13 @@ function MediaAdmin() {
           {items.map((m) => (
             <li key={m.id} className="admin-card overflow-hidden">
               {m.content_type.startsWith('video/') ? (
-                <video src={m.url} muted playsInline preload="metadata" className="aspect-square w-full bg-[#f3ece9] object-cover" />
+                <video src={m.url} muted playsInline preload="metadata" className="aspect-square w-full bg-[#eef1f7] object-cover" />
               ) : (
-                <img src={m.url} alt={m.filename} loading="lazy" className="aspect-square w-full bg-[#f3ece9] object-cover" />
+                <img src={m.url} alt={m.filename} loading="lazy" className="aspect-square w-full bg-[#eef1f7] object-cover" />
               )}
               <div className="space-y-2 p-3">
                 <p className="truncate text-sm font-semibold" title={m.filename}>{m.filename}</p>
-                <p className="text-xs text-[#85726d]">{size(m.size)}</p>
+                <p className="text-xs text-[#667085]">{size(m.size)}</p>
                 <div className="flex justify-between text-sm">
                   <button type="button" className="font-semibold text-brand hover:underline" onClick={() => copy(m.id, m.url)}>
                     {copied === m.id ? 'Copied' : 'Copy link'}
@@ -108,10 +108,10 @@ function MediaAdmin() {
                   {confirmId === m.id ? (
                     <span className="flex gap-2">
                       <button type="button" className="font-semibold text-red-700" onClick={() => remove(m.id)}>Delete</button>
-                      <button type="button" className="text-[#85726d]" onClick={() => setConfirmId(null)}>No</button>
+                      <button type="button" className="text-[#667085]" onClick={() => setConfirmId(null)}>No</button>
                     </span>
                   ) : (
-                    <button type="button" className="text-[#85726d] hover:text-red-700" onClick={() => setConfirmId(m.id)}>
+                    <button type="button" className="text-[#667085] hover:text-red-700" onClick={() => setConfirmId(m.id)}>
                       Delete
                     </button>
                   )}

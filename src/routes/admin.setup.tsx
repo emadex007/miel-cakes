@@ -32,7 +32,7 @@ function SetupPage() {
       <form onSubmit={submit} className="admin-card mt-6 space-y-5 p-7">
         <div>
           <h1 className="text-xl font-bold">Create the owner account</h1>
-          <p className="mt-1 text-sm text-[#85726d]">This page only works once. After this, add staff from the dashboard.</p>
+          <p className="mt-1 text-sm text-[#667085]">This page only works once. After this, add staff from the dashboard.</p>
         </div>
         <Messages error={error} />
         <Field label="Your name" htmlFor="setup-name">

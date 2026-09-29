@@ -12,8 +12,8 @@ function SettingsPage() {
   const settings = Route.useLoaderData()
   return (
     <>
-      <PageTitle title="Settings">Business details, brand colours, contact information and payment details.</PageTitle>
-      <SettingsEditor groupIds={['brand', 'contact', 'ordering']} initial={settings} />
+      <PageTitle title="Settings & colours">Business name, logo, brand and button hover colours, contact details, payment and delivery information, and receipt wording.</PageTitle>
+      <SettingsEditor groupIds={['brand', 'contact', 'ordering', 'receipt', 'sharing']} initial={settings} />
     </>
   )
 }

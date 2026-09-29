@@ -75,12 +75,12 @@ function MenuAdmin() {
       <ul className="space-y-3">
         {shown.map((p) => (
           <li key={p.id} className="admin-card flex flex-wrap items-center gap-4 p-3 pr-5">
-            <img src={p.image_url || undefined} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-[#f3ece9] object-cover" />
+            <img src={p.image_url || undefined} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-[#eef1f7] object-cover" />
             <div className="min-w-0 flex-1">
               <Link to="/admin/menu/$id" params={{ id: String(p.id) }} className="font-semibold hover:text-brand">
                 {p.name}
               </Link>
-              <p className="text-sm text-[#85726d]">
+              <p className="text-sm text-[#667085]">
                 {p.category_name} · {p.options.length > 1 ? 'from ' : ''}
                 <span className="tabular">{formatNaira(fromPrice(p.options))}</span>
                 {p.availability === 'preorder' ? ` · ${p.notice_days} day notice` : ' · daily'}
@@ -97,19 +97,19 @@ function MenuAdmin() {
                   <button type="button" onClick={() => remove(p.id)} className="font-semibold text-red-700 hover:underline">
                     Yes, delete
                   </button>
-                  <button type="button" onClick={() => setConfirmId(null)} className="text-[#85726d]">
+                  <button type="button" onClick={() => setConfirmId(null)} className="text-[#667085]">
                     Cancel
                   </button>
                 </span>
               ) : (
-                <button type="button" onClick={() => setConfirmId(p.id)} className="text-sm font-semibold text-[#85726d] hover:text-red-700">
+                <button type="button" onClick={() => setConfirmId(p.id)} className="text-sm font-semibold text-[#667085] hover:text-red-700">
                   Delete
                 </button>
               )}
             </div>
           </li>
         ))}
-        {!shown.length && <li className="admin-card p-8 text-center text-[#85726d]">No items match. Try another search.</li>}
+        {!shown.length && <li className="admin-card p-8 text-center text-[#667085]">No items match. Try another search.</li>}
       </ul>
     </>
   )

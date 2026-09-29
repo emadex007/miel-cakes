@@ -1,1 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#B8325A"/><path d="M14 40h36v8a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z" fill="#FFF7F2"/><path d="M16 30h32v10H16z" fill="#E3A82B"/><path d="M16 30c3 3 5 3 8 0s5-3 8 0 5 3 8 0 5-3 8 0v-3a3 3 0 0 0-3-3H19a3 3 0 0 0-3 3z" fill="#FFF7F2"/><rect x="30.5" y="12" width="3" height="10" rx="1.5" fill="#FFF7F2"/><path d="M32 6c2 2.5 2 4.5 0 6-2-1.5-2-3.5 0-6z" fill="#E3A82B"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="15" fill="#1D4ED8"/>
+  <!-- plate -->
+  <rect x="9" y="50" width="46" height="4" rx="2" fill="#0F1E3D" opacity=".35"/>
+  <!-- bottom tier -->
+  <rect x="12" y="34" width="40" height="17" rx="4" fill="#FFFCF5"/>
+  <path d="M12 38c0-2.2 1.8-4 4-4h32c2.2 0 4 1.8 4 4v1.5c-2.3 0-2.3 3-4.6 3s-2.3-3-4.6-3-2.3 4-4.6 4-2.3-4-4.6-4-2.3 3-4.6 3-2.3-3-4.6-3-2.3 4-4.6 4-2.3-4-4.6-4L12 39.5z" fill="#FACC15"/>
+  <!-- top tier -->
+  <rect x="19" y="21" width="26" height="14" rx="3.5" fill="#FFFCF5"/>
+  <path d="M19 24.5c0-1.9 1.6-3.5 3.5-3.5h19c1.9 0 3.5 1.6 3.5 3.5V26c-1.6 0-1.6 2.4-3.2 2.4s-1.6-2.4-3.2-2.4-1.6 3.2-3.2 3.2-1.6-3.2-3.2-3.2-1.6 2.4-3.2 2.4-1.6-2.4-3.2-2.4-1.6 3.2-3.2 3.2L19 26z" fill="#FACC15"/>
+  <!-- cherry -->
+  <path d="M33.5 13.5c1.8-2.6 4.2-3.8 6.5-3.6" fill="none" stroke="#0F1E3D" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="32" cy="17" r="4.2" fill="#DC2626"/>
+  <circle cx="30.6" cy="15.6" r="1.2" fill="#FFFCF5" opacity=".75"/>
+</svg>

@@ -41,14 +41,14 @@ function StaffAdmin() {
       <PageTitle title="Staff & password">People who can sign in to this dashboard.</PageTitle>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-6">
-          <div className="admin-card divide-y divide-[#f1e9e6]">
+          <div className="admin-card divide-y divide-[#eceff5]">
             {admins.map((a) => (
               <div key={a.id} className="flex items-center gap-3 p-4">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">
-                    {a.name} {a.id === me.id && <span className="text-sm font-normal text-[#85726d]">(you)</span>}
+                    {a.name} {a.id === me.id && <span className="text-sm font-normal text-[#667085]">(you)</span>}
                   </p>
-                  <p className="truncate text-sm text-[#85726d]">
+                  <p className="truncate text-sm text-[#667085]">
                     {a.email} · {a.role === 'owner' ? 'Owner' : 'Staff'}
                   </p>
                 </div>
@@ -56,10 +56,10 @@ function StaffAdmin() {
                   confirmId === a.id ? (
                     <span className="flex gap-2 text-sm">
                       <button type="button" className="font-semibold text-red-700" onClick={() => remove(a.id)}>Remove</button>
-                      <button type="button" className="text-[#85726d]" onClick={() => setConfirmId(null)}>Cancel</button>
+                      <button type="button" className="text-[#667085]" onClick={() => setConfirmId(null)}>Cancel</button>
                     </span>
                   ) : (
-                    <button type="button" className="text-sm text-[#85726d] hover:text-red-700" onClick={() => setConfirmId(a.id)}>
+                    <button type="button" className="text-sm text-[#667085] hover:text-red-700" onClick={() => setConfirmId(a.id)}>
                       Remove
                     </button>
                   )

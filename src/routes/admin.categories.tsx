@@ -85,12 +85,12 @@ function CategoriesAdmin() {
       <ul className="grid gap-3 sm:grid-cols-2">
         {categories.map((c) => (
           <li key={c.id} className="admin-card flex items-center gap-4 p-3 pr-5">
-            <img src={c.image_url || undefined} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-[#f3ece9] object-cover" />
+            <img src={c.image_url || undefined} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-[#eef1f7] object-cover" />
             <div className="min-w-0 flex-1">
               <p className="font-semibold">
-                {c.name} {!c.is_active && <span className="ml-1 rounded bg-[#f3ece9] px-1.5 py-0.5 text-xs text-[#85726d]">Hidden</span>}
+                {c.name} {!c.is_active && <span className="ml-1 rounded bg-[#eef1f7] px-1.5 py-0.5 text-xs text-[#667085]">Hidden</span>}
               </p>
-              <p className="text-sm text-[#85726d]">
+              <p className="text-sm text-[#667085]">
                 {c.product_count ?? 0} item{c.product_count === 1 ? '' : 's'} · position {c.sort}
               </p>
             </div>
@@ -101,10 +101,10 @@ function CategoriesAdmin() {
               {confirmId === c.id ? (
                 <span className="flex gap-2">
                   <button type="button" className="font-semibold text-red-700" onClick={() => remove(c.id)}>Delete</button>
-                  <button type="button" className="text-[#85726d]" onClick={() => setConfirmId(null)}>Cancel</button>
+                  <button type="button" className="text-[#667085]" onClick={() => setConfirmId(null)}>Cancel</button>
                 </span>
               ) : (
-                <button type="button" className="text-[#85726d] hover:text-red-700" onClick={() => setConfirmId(c.id)}>
+                <button type="button" className="text-[#667085] hover:text-red-700" onClick={() => setConfirmId(c.id)}>
                   Delete
                 </button>
               )}

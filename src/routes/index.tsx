@@ -1,9 +1,11 @@
 import { Link, createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { FaqTeaser, ReviewsSection } from '~/components/Extras'
 import { AnimatedHeadline, LoopVideo, Reveal, Rotator } from '~/components/motion'
 import { ProductCard } from '~/components/ProductCard'
 import { WhatsAppIcon } from '~/components/icons'
 import { getHomeData } from '~/fns/public'
 import { formatNaira, lines, whatsappLink } from '~/lib/format'
+import { parseOccasions } from '~/lib/site-fields'
 
 const root = getRouteApi('__root__')
 
@@ -14,7 +16,8 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const s = root.useLoaderData()
-  const { categories, featured, zones } = Route.useLoaderData()
+  const { categories, featured, zones, gallery, reviews } = Route.useLoaderData()
+  const occasions = parseOccasions(s.occasions)
   const wa = whatsappLink(s.whatsapp, `Hello ${s.business_name}, I'd like to place an order.`)
   const eventWa = whatsappLink(s.whatsapp, `Hello ${s.business_name}, I'd like to book you for an event.`)
   const steps = lines(s.home_steps).map((l) => {
@@ -69,7 +72,7 @@ function HomePage() {
                 {[...marqueeItems, ...marqueeItems].map((item, n) => (
                   <span key={`${copy}-${n}`} className="flex items-center font-display text-lg text-cocoa">
                     <span className="px-6">{item}</span>
-                    <span className="text-brand">✦</span>
+                    <span className="text-highlight">✦</span>
                   </span>
                 ))}
               </div>
@@ -122,13 +125,81 @@ function HomePage() {
         </section>
       )}
 
+      <ReviewsSection reviews={reviews} />
+
+      {/* ---------- Occasions ---------- */}
+      {occasions.length > 0 && (
+        <section className="mt-24 bg-cocoa py-20 text-cream">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <Reveal className="max-w-2xl">
+              <p className="eyebrow text-accent">Occasions</p>
+              <h2 className="mt-2 font-display text-3xl sm:text-4xl">{s.occasions_title}</h2>
+              {s.occasions_intro && <p className="mt-3 text-cream/75">{s.occasions_intro}</p>}
+            </Reveal>
+            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {occasions.map((o, n) => (
+                <Reveal key={o.group} delay={(n % 3) * 0.08} className="rounded-3xl bg-white/[0.06] p-6 ring-1 ring-white/10">
+                  <h3 className="font-display text-2xl text-accent">{o.group}</h3>
+                  <ul className="mt-4 flex flex-wrap gap-2">
+                    {o.items.map((item) => (
+                      <li key={item}>
+                        <Link
+                          to="/gallery"
+                          search={{ o: item }}
+                          className="inline-block rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium transition hover:bg-accent hover:text-cocoa"
+                        >
+                          {item}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </Reveal>
+              ))}
+              <Reveal delay={0.16} className="flex flex-col justify-between rounded-3xl bg-accent p-6 text-cocoa">
+                <div>
+                  <h3 className="font-display text-2xl">Don’t see yours?</h3>
+                  <p className="mt-2 text-cocoa/80">Tell us about your event and we’ll bake for it.</p>
+                </div>
+                <Link to="/contact" hash="quote" className="btn btn-primary mt-6 self-start">
+                  Get a quote
+                </Link>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ---------- Recent work ---------- */}
+      {gallery.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
+          <Reveal className="flex flex-wrap items-end justify-between gap-4">
+            <h2 className="font-display text-3xl sm:text-4xl">Recent work</h2>
+            <Link to="/gallery" className="font-semibold text-brand hover:underline">
+              See the gallery →
+            </Link>
+          </Reveal>
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3">
+            {gallery.map((g, n) => (
+              <Reveal key={g.id} delay={(n % 3) * 0.08}>
+                <Link to="/gallery" className="group relative block aspect-square overflow-hidden rounded-3xl bg-soft">
+                  <img src={g.image_url} alt={g.title} loading="lazy" className="zoom-img h-full w-full object-cover" />
+                  {g.occasion && (
+                    <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-cocoa">{g.occasion}</span>
+                  )}
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ---------- How it works ---------- */}
       {steps.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
           <Reveal>
             <h2 className="font-display text-3xl sm:text-4xl">How ordering works</h2>
           </Reveal>
-          <ol className="mt-8 grid gap-5 md:grid-cols-3">
+          <ol className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((st, n) => (
               <Reveal as="li" key={st.title} delay={n * 0.1} className="rounded-3xl bg-white p-6 ring-1 ring-line">
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand font-display text-lg text-white tabular">
@@ -149,22 +220,24 @@ function HomePage() {
             {s.event_image_url && <img src={s.event_image_url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
           </div>
           <div className="p-8 sm:p-12">
-            <p className="eyebrow text-accent">Events & bulk orders</p>
+            <p className="eyebrow text-accent">Events & custom orders</p>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl">{s.event_title}</h2>
             <p className="mt-4 text-cream/80">{s.event_body}</p>
             <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/contact" hash="quote" className="btn btn-primary">
+                Get a quote
+              </Link>
               {eventWa && (
-                <a href={eventWa} target="_blank" rel="noopener" className="btn btn-primary">
-                  <WhatsAppIcon /> Ask about your event
+                <a href={eventWa} target="_blank" rel="noopener" className="btn btn-ghost">
+                  <WhatsAppIcon /> Chat about your event
                 </a>
               )}
-              <Link to="/menu" search={{ c: 'party-packages' }} className="btn btn-ghost">
-                Party packages
-              </Link>
             </div>
           </div>
         </Reveal>
       </section>
+
+      <FaqTeaser s={s} />
 
       {/* ---------- Delivery ---------- */}
       {zones.length > 0 && (

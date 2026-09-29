@@ -44,7 +44,7 @@ export function PageTitle({ title, children, actions }: { title: string; childre
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="font-display text-3xl text-cocoa">{title}</h1>
-        {children && <p className="mt-1 max-w-2xl text-[#85726d]">{children}</p>}
+        {children && <p className="mt-1 max-w-2xl text-[#667085]">{children}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
@@ -68,7 +68,7 @@ export function Toggle({ checked, onChange, label, id }: { checked: boolean; onC
     <label htmlFor={id} className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-medium">
       <span className="relative inline-flex">
         <input id={id} type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span className="h-6 w-11 rounded-full bg-[#ddd3cf] transition peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
+        <span className="h-6 w-11 rounded-full bg-[#d0d5e2] transition peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
         <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
       </span>
       {label}
@@ -119,12 +119,12 @@ export function MediaField({
     <div className="space-y-2">
       {value ? (
         showVideo ? (
-          <video src={value} muted loop autoPlay playsInline className="aspect-video w-full max-w-sm rounded-xl bg-[#f3ece9] object-cover" />
+          <video src={value} muted loop autoPlay playsInline className="aspect-video w-full max-w-sm rounded-xl bg-[#eef1f7] object-cover" />
         ) : (
-          <img src={value} alt="" className="aspect-video w-full max-w-sm rounded-xl bg-[#f3ece9] object-cover" />
+          <img src={value} alt="" className="aspect-video w-full max-w-sm rounded-xl bg-[#eef1f7] object-cover" />
         )
       ) : (
-        <div className="flex aspect-video w-full max-w-sm items-center justify-center rounded-xl border border-dashed border-[#ddd3cf] text-sm text-[#85726d]">
+        <div className="flex aspect-video w-full max-w-sm items-center justify-center rounded-xl border border-dashed border-[#d0d5e2] text-sm text-[#667085]">
           No {kind} yet
         </div>
       )}
@@ -141,7 +141,7 @@ export function MediaField({
           {busy ? 'Uploading…' : 'Upload'}
         </button>
         {value && (
-          <button type="button" className="px-2 text-sm font-semibold text-[#85726d] hover:text-red-700" onClick={() => onChange('')}>
+          <button type="button" className="px-2 text-sm font-semibold text-[#667085] hover:text-red-700" onClick={() => onChange('')}>
             Remove
           </button>
         )}

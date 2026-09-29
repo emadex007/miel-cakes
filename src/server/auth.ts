@@ -88,9 +88,52 @@ export async function requireAdmin() {
   return admin
 }
 
-/** Reads the admin cookie from a raw Request (used by server routes like uploads). */
-export function sessionIdFromRequest(request: Request) {
-  const cookie = request.headers.get('cookie') ?? ''
-  const match = cookie.match(new RegExp(`(?:^|;\\s*)${ADMIN_COOKIE}=([^;]+)`))
-  return match ? decodeURIComponent(match[1]) : null
+// ---------------------------------------------------------------------------
+// Customer sessions (online shop)
+// ---------------------------------------------------------------------------
+export const CUSTOMER_COOKIE = 'mc_customer'
+
+export interface CustomerUser {
+  id: number
+  name: string
+  email: string
+  phone: string
+}
+
+export async function startCustomerSession(customerId: number) {
+  const { id } = await createSession('customer', customerId)
+  setCookie(CUSTOMER_COOKIE, id, {
+    httpOnly: true,
+    secure: !import.meta.env.DEV,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_DAYS * 86_400,
+  })
+}
+
+export async function endCustomerSession() {
+  const id = getCookie(CUSTOMER_COOKIE)
+  if (id) await db().prepare('DELETE FROM sessions WHERE id = ?').bind(id).run()
+  deleteCookie(CUSTOMER_COOKIE, { path: '/' })
+}
+
+export async function customerFromSessionId(sessionId: string | undefined | null): Promise<CustomerUser | null> {
+  if (!sessionId) return null
+  const row = await db()
+    .prepare(
+      `SELECT c.id, c.name, c.email, c.phone FROM sessions s
+       JOIN customers c ON c.id = s.user_id
+       WHERE s.id = ? AND s.user_type = 'customer' AND s.expires_at > ?`,
+    )
+    .bind(sessionId, new Date().toISOString())
+    .first<CustomerUser>()
+  return row ?? null
+}
+
+export const currentCustomer = () => customerFromSessionId(getCookie(CUSTOMER_COOKIE))
+
+export async function requireCustomer() {
+  const c = await currentCustomer()
+  if (!c) throw new Error('Please sign in to continue.')
+  return c
 }

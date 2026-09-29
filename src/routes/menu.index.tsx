@@ -26,7 +26,7 @@ function MenuPage() {
       <h1 className="mt-2 font-display text-4xl sm:text-5xl">Everything we bake</h1>
       {s.order_note && <p className="mt-4 max-w-2xl text-muted">{s.order_note}</p>}
 
-      <nav className="sticky top-[68px] z-30 -mx-4 mt-8 overflow-x-auto border-b border-line bg-cream/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0" aria-label="Menu categories">
+      <nav className="sticky top-[80px] z-30 -mx-4 mt-8 overflow-x-auto border-b border-line bg-cream/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0" aria-label="Menu categories">
         <div className="flex w-max gap-2">
           <Link
             to="/menu"

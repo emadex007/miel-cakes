@@ -48,15 +48,25 @@ function htmlPage(title: string, text: string, extra = '') {
   )
 }
 
+let lastCampaignCheck = 0
+
 export default {
-  // Daily schedule (wrangler.toml [triggers]): sends the next batch of festive emails
+  // Daily schedule (only if a cron is added in wrangler.toml) (wrangler.toml [triggers]): sends the next batch of festive emails
   async scheduled(_controller: ScheduledController, env: AppEnv, ctx: ExecutionContext) {
     const origin = env.CANONICAL_HOST ? `https://${env.CANONICAL_HOST}` : 'https://mielcakes.com'
     ctx.waitUntil(sendCampaignBatch(env, origin).then((r) => console.log('festive emails sent', r)))
   },
 
-  async fetch(request: Request, env: AppEnv) {
+  async fetch(request: Request, env: AppEnv, ctx: ExecutionContext) {
     const url = new URL(request.url)
+
+    // Festive emails: send today's batch in the background, at most every 20 minutes,
+    // from 8am Abuja time. (Does nothing when no festive email is waiting.)
+    if (Date.now() - lastCampaignCheck > 20 * 60_000 && new Date(Date.now() + 3_600_000).getUTCHours() >= 8) {
+      lastCampaignCheck = Date.now()
+      const origin = env.CANONICAL_HOST ? `https://${env.CANONICAL_HOST}` : url.origin
+      ctx.waitUntil(sendCampaignBatch(env, origin).catch((e) => console.error('festive emails', e)))
+    }
 
     // One address for everyone: www.mielcakes.com and the old workers.dev link
     // both send visitors to the main domain (set CANONICAL_HOST in wrangler.toml).

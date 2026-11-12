@@ -173,7 +173,7 @@ Order alerts to your inbox, order updates to customers, and festive emails all g
    ```
 4. In the dashboard: **Settings & colours → Alerts & emails**: put the email that should get order alerts. Then **Alerts & emails** in the menu → **Send me a test email**.
 
-Festive emails go out in daily batches (about 80 a day, set in Settings) so order emails always have room. A daily schedule in `wrangler.toml` (`[triggers]`) sends the next batch at about 9:17am Abuja time.
+Festive emails go out in daily batches (about 80 a day, set in Settings) so order emails always have room. The site sends each day's batch by itself as people visit, from 8am Abuja time. No cron is used, because the free plan allows only 5 per Cloudflare account and they're already in use.
 
 ## Phone alerts
 

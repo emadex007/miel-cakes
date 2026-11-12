@@ -29,9 +29,8 @@ enabled = true
 # PAYSTACK_SECRET_KEY   Paystack checkout and booking deposits   (Phase 3)
 # RESEND_API_KEY        alerts, customer emails, festive emails  (see README: Turning on emails)
 
-# Every morning at 9:17 (Abuja time) send the next batch of festive emails
-[triggers]
-crons = ["17 8 * * *"]
+# No cron schedule: the free plan allows only 5 per Cloudflare account and they're used up.
+# Festive email batches are sent by the site itself as people visit (see src/server.ts).
 
 [vars]
 SITE_ENV = "production"

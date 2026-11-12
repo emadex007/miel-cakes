@@ -346,7 +346,7 @@ function Festive({ data }: { data: Data }) {
           </div>
           {data.audience > 0 && (
             <p className="text-xs text-[#667085]">
-              To stay inside the free email allowance, up to {perDay} go out per day (each morning at about 9am). {e.allowanceToday} can go today.
+              To stay inside the free email allowance, up to {perDay} go out per day (from 8am). {e.allowanceToday} can go today.
               {data.audience > e.allowanceToday ? ` Everyone will have it in about ${days} day${days === 1 ? '' : 's'}, so send festive emails a few days early.` : ''}
             </p>
           )}

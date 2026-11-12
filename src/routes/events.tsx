@@ -1,5 +1,7 @@
 import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { DatePicker } from '~/components/DatePicker'
+import { FulfilmentChoice } from '~/components/FulfilmentChoice'
 import { CheckIcon, WhatsAppIcon } from '~/components/icons'
 import { Reveal } from '~/components/motion'
 import { getBookingForm, requestBooking, type BookingRequestInput } from '~/fns/bookings'
@@ -19,8 +21,6 @@ export const Route = createFileRoute('/events')({
   component: EventsPage,
 })
 
-const DRAFT_KEY = 'mc_event_draft'
-const BUDGETS = ['Not sure yet', 'Under ₦100,000', '₦100,000 – ₦250,000', '₦250,000 – ₦500,000', '₦500,000 – ₦1,000,000', 'Above ₦1,000,000']
 const niceDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
 
 function EventsPage() {
@@ -78,7 +78,9 @@ function EventsPage() {
   )
 }
 
-function emptyForm(phone: string, minDate: string): BookingRequestInput {
+type Me = { name: string; email: string; phone: string } | null
+
+function emptyForm(me: Me, minDate: string): BookingRequestInput {
   return {
     event_type: '',
     event_date: minDate,
@@ -86,11 +88,12 @@ function emptyForm(phone: string, minDate: string): BookingRequestInput {
     guests: 0,
     items: [],
     details: '',
-    budget: '',
     fulfilment: 'delivery',
     zone_id: null,
     address: '',
-    contact_phone: phone,
+    contact_phone: me?.phone ?? '',
+    contact_name: me?.name ?? '',
+    contact_email: me?.email ?? '',
   }
 }
 
@@ -100,29 +103,13 @@ function BookingForm() {
   const router = useRouter()
   const occasionGroups = parseOccasions(s.occasions)
   const itemOptions = lines(s.quote_items)
-  const [form, setForm] = useState<BookingRequestInput>(() => emptyForm(me?.phone ?? '', minDate))
+  const [form, setForm] = useState<BookingRequestInput>(() => emptyForm(me, minDate))
   const [otherOccasion, setOtherOccasion] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [restored, setRestored] = useState(false)
   const [photo, setPhoto] = useState<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const set = <K extends keyof BookingRequestInput>(k: K, v: BookingRequestInput[K]) => setForm((f) => ({ ...f, [k]: v }))
-
-  // Bring back what they typed before signing in
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(DRAFT_KEY)
-      if (!raw) return
-      const draft = JSON.parse(raw) as BookingRequestInput & { otherOccasion?: boolean }
-      setForm({ ...emptyForm(me?.phone ?? '', minDate), ...draft, contact_phone: draft.contact_phone || me?.phone || '' })
-      setOtherOccasion(!!draft.otherOccasion)
-      setRestored(true)
-      if (me) sessionStorage.removeItem(DRAFT_KEY)
-    } catch {
-      /* no saved draft */
-    }
-  }, [])
 
   const blockedMap = useMemo(() => new Map(blocked.map((b) => [b.date, b.reason])), [blocked])
   const dateBlocked = blockedMap.has(form.event_date)
@@ -138,15 +125,6 @@ function BookingForm() {
     setError('')
     if (!form.event_type.trim()) return setError('What is the occasion?')
     if (dateBlocked) return setError('We’re fully booked on that date. Please choose another.')
-    if (!me) {
-      try {
-        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...form, otherOccasion }))
-      } catch {
-        /* storage blocked: they'll just fill it in again */
-      }
-      router.history.push(`/login?redirect=${encodeURIComponent('/events#book')}`)
-      return
-    }
     setBusy(true)
     try {
       const { code } = await requestBooking({ data: { ...form, zone_id: form.fulfilment === 'delivery' ? form.zone_id : null } })
@@ -164,17 +142,14 @@ function BookingForm() {
 
   const input = 'w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-line focus:ring-2 focus:ring-brand'
   const label = 'mb-1.5 block text-sm font-semibold'
-  const choice = (on: boolean) =>
-    `flex-1 cursor-pointer rounded-2xl px-4 py-3 text-center font-semibold ring-1 transition ${on ? 'bg-cocoa text-cream ring-cocoa' : 'bg-white ring-line hover:ring-brand'}`
 
   return (
     <form onSubmit={submit} className="rounded-[2rem] bg-soft p-6 sm:p-10">
       <h2 className="font-display text-3xl sm:text-4xl">Tell us about your event</h2>
       <p className="mt-2 max-w-2xl text-cocoa/80">
-        Please book at least {minDays} days ahead. For anything sooner, message us on WhatsApp.
-        {!me && ' You’ll sign in (or create a free account) when you send, so you can follow your booking and pay online.'}
+        Please book at least {minDays} days ahead. For anything sooner, message us on WhatsApp. No account needed: we send your quote with
+        the price, and you can follow your booking and pay online.
       </p>
-      {restored && me && <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-semibold ring-1 ring-line">Welcome back! We kept what you typed. Check it and send.</p>}
 
       <fieldset className="mt-8 grid gap-4 sm:grid-cols-2">
         <legend className="sr-only">Event details</legend>
@@ -211,7 +186,7 @@ function BookingForm() {
         </div>
         <div>
           <label htmlFor="ev-date" className={label}>Event date *</label>
-          <input id="ev-date" type="date" required min={minDate} className={input} value={form.event_date} onChange={(e) => set('event_date', e.target.value)} />
+          <DatePicker id="ev-date" required min={minDate} blocked={blockedMap} className={input} value={form.event_date} onChange={(v) => set('event_date', v)} />
           <p className="mt-1 text-xs text-muted">Earliest: {niceDate(minDate)}</p>
           {dateBlocked && (
             <p className="mt-1 text-sm font-semibold text-highlight">
@@ -236,15 +211,6 @@ function BookingForm() {
             onChange={(e) => set('guests', Number(e.target.value) || 0)}
             placeholder="About how many?"
           />
-        </div>
-        <div>
-          <label htmlFor="ev-budget" className={label}>Budget</label>
-          <select id="ev-budget" className={input} value={form.budget} onChange={(e) => set('budget', e.target.value)}>
-            <option value="">Choose a range</option>
-            {BUDGETS.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
         </div>
       </fieldset>
 
@@ -290,15 +256,8 @@ function BookingForm() {
 
       <fieldset className="mt-8 space-y-4">
         <legend className="mb-3 font-display text-xl">Delivery</legend>
-        <div className="flex max-w-lg gap-2">
-          <label className={choice(form.fulfilment === 'delivery')}>
-            <input type="radio" name="ev-ful" className="sr-only" checked={form.fulfilment === 'delivery'} onChange={() => set('fulfilment', 'delivery')} />
-            Deliver to the venue
-          </label>
-          <label className={choice(form.fulfilment === 'pickup')}>
-            <input type="radio" name="ev-ful" className="sr-only" checked={form.fulfilment === 'pickup'} onChange={() => set('fulfilment', 'pickup')} />
-            I&rsquo;ll pick up
-          </label>
+        <div className="max-w-3xl">
+          <FulfilmentChoice name="ev-ful" value={form.fulfilment} onChange={(v) => set('fulfilment', v)} deliveryLabel="Deliver to the venue" />
         </div>
         {form.fulfilment === 'delivery' ? (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -318,22 +277,41 @@ function BookingForm() {
             </div>
           </div>
         ) : (
-          s.address && <p className="text-sm text-cocoa/80">Pick up from: <span className="whitespace-pre-line font-semibold">{s.address}</span></p>
+          s.address && (
+            <p className="text-sm text-cocoa/80">
+              {form.fulfilment === 'own_rider' ? 'Your rider collects from: ' : 'Pick up from: '}
+              <span className="whitespace-pre-line font-semibold">{s.address}</span>
+            </p>
+          )
         )}
-        <div className="max-w-sm">
-          <label htmlFor="ev-phone" className={label}>Your phone number *</label>
-          <input id="ev-phone" type="tel" required className={input} value={form.contact_phone} onChange={(e) => set('contact_phone', e.target.value)} />
+      </fieldset>
+
+      <fieldset className="mt-8">
+        <legend className="mb-3 font-display text-xl">Your details</legend>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label htmlFor="ev-name" className={label}>Your name *</label>
+            <input id="ev-name" required autoComplete="name" className={input} value={form.contact_name} onChange={(e) => set('contact_name', e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="ev-email" className={label}>Email *</label>
+            <input id="ev-email" type="email" required autoComplete="email" className={input} value={form.contact_email} onChange={(e) => set('contact_email', e.target.value)} placeholder="We send your quote here" />
+          </div>
+          <div>
+            <label htmlFor="ev-phone" className={label}>Phone number *</label>
+            <input id="ev-phone" type="tel" required autoComplete="tel" className={input} value={form.contact_phone} onChange={(e) => set('contact_phone', e.target.value)} />
+          </div>
         </div>
       </fieldset>
 
       {error && <p role="alert" className="mt-6 rounded-2xl bg-highlight/10 px-4 py-3 text-sm font-semibold text-highlight">{error}</p>}
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <button type="submit" className="btn btn-primary !px-8 !py-4 text-base" disabled={busy}>
-          {busy ? 'Sending…' : me ? 'Send booking request' : 'Sign in and send'}
+          {busy ? 'Sending…' : 'Send booking request'}
         </button>
-        {!me && (
-          <Link to="/signup" search={{ redirect: '/events#book' }} className="text-sm font-semibold text-brand hover:underline">
-            New here? Create a free account
+        {!me?.email && (
+          <Link to="/login" search={{ redirect: '/events#book' }} className="text-sm font-semibold text-brand hover:underline">
+            Have an account? Sign in
           </Link>
         )}
       </div>

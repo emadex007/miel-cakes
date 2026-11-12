@@ -196,7 +196,7 @@ function BookingAdmin() {
               <Row label="Occasion" value={b.event_type} />
               <Row label="Date" value={`${eventDate}${b.event_time ? `, ${b.event_time}` : ''}`} />
               <Row label="Guests" value={String(b.guests)} />
-              <Row label={b.fulfilment === 'delivery' ? 'Venue' : 'Pickup'} value={b.fulfilment === 'delivery' ? `${b.address}${b.zone_name ? `, ${b.zone_name}` : ''}` : 'Customer picks up'} />
+              <Row label={b.fulfilment === 'delivery' ? 'Venue' : 'Pickup'} value={b.fulfilment === 'delivery' ? `${b.address}${b.zone_name ? `, ${b.zone_name}` : ''}` : b.own_rider ? 'Customer sends their own rider' : 'Customer picks up'} />
               {b.budget && <Row label="Budget" value={b.budget} />}
             </dl>
             {b.items_wanted && <p className="border-t border-[#eceff5] pt-3"><span className="text-[#667085]">Wants:</span> <strong>{b.items_wanted}</strong></p>}

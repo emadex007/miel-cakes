@@ -64,7 +64,7 @@ function TrackPage() {
         <div className="mt-8 space-y-4">
           <h2 className="font-display text-3xl">Order {result.code}</h2>
           <p className="text-muted">
-            {result.fulfilment === 'delivery' ? `Delivery${result.zone_name ? ` to ${result.zone_name}` : ''}` : 'Pickup'} on{' '}
+            {result.fulfilment === 'delivery' ? `Delivery${result.zone_name ? ` to ${result.zone_name}` : ''}` : result.own_rider ? 'Your rider collects' : 'Pickup'} on{' '}
             {new Date(`${result.needed_date}T12:00:00`).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}
             {result.time_slot ? `, ${result.time_slot}` : ''}
           </p>

@@ -137,9 +137,8 @@ function BookingPage() {
             <Row label="Occasion" value={b.event_type} />
             <Row label="Date" value={`${niceDate(b.event_date)}${b.event_time ? `, ${b.event_time}` : ''}`} />
             <Row label="Guests" value={String(b.guests)} />
-            <Row label={b.fulfilment === 'delivery' ? 'Venue' : 'Pickup'} value={b.fulfilment === 'delivery' ? `${b.address}${b.zone_name ? `, ${b.zone_name}` : ''}` : s.address} />
+            <Row label={b.fulfilment === 'delivery' ? 'Venue' : b.own_rider ? 'Your rider collects from' : 'Pickup'} value={b.fulfilment === 'delivery' ? `${b.address}${b.zone_name ? `, ${b.zone_name}` : ''}` : s.address} />
             <Row label="Phone" value={b.contact_phone} />
-            {b.budget && <Row label="Budget" value={b.budget} />}
           </dl>
           {(b.items_wanted || b.details) && (
             <div className="space-y-2 border-t border-line pt-4 text-sm">

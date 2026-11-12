@@ -1,5 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { isVideoUrl } from '~/lib/format'
+import type { ProductMedia } from '~/lib/types'
+import { ChevronLeftIcon, ChevronRightIcon } from '~/components/icons'
 
 export const errorMessage = (e: unknown) =>
   e instanceof Error ? e.message : typeof e === 'string' ? e : 'Something went wrong. Try again.'
@@ -147,6 +149,89 @@ export function MediaField({
         )}
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
+    </div>
+  )
+}
+
+/**
+ * Several photos and videos for one item. Pick many files at once; they upload
+ * one after another. Drag order is kept simple: arrows move an item.
+ */
+export function MediaListField({ value, onChange }: { value: ProductMedia[]; onChange: (v: ProductMedia[]) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+  const [progress, setProgress] = useState('')
+  const [error, setError] = useState('')
+  const latest = useRef(value)
+  latest.current = value
+
+  async function pick(files: FileList | null) {
+    if (!files?.length) return
+    setError('')
+    const list = Array.from(files).slice(0, 20)
+    let done = 0
+    for (const file of list) {
+      setProgress(`Uploading ${done + 1} of ${list.length}…`)
+      try {
+        const url = await uploadFile(file)
+        const kind: ProductMedia['kind'] = file.type.startsWith('video/') ? 'video' : 'image'
+        latest.current = [...latest.current, { url, kind }]
+        onChange(latest.current)
+      } catch (e) {
+        setError(`${file.name}: ${errorMessage(e)}`)
+      }
+      done++
+    }
+    setProgress('')
+    if (input.current) input.current.value = ''
+  }
+  const move = (i: number, by: number) => {
+    const next = [...value]
+    const j = i + by
+    if (j < 0 || j >= next.length) return
+    ;[next[i], next[j]] = [next[j], next[i]]
+    onChange(next)
+  }
+
+  return (
+    <div className="space-y-3">
+      {value.length > 0 && (
+        <ul className="grid grid-cols-3 gap-2">
+          {value.map((m, i) => (
+            <li key={`${m.url}-${i}`} className="group relative overflow-hidden rounded-xl bg-[#eef1f7]">
+              {m.kind === 'video' ? (
+                <video src={m.url} muted playsInline preload="metadata" className="aspect-square w-full object-cover" />
+              ) : (
+                <img src={m.url} alt="" className="aspect-square w-full object-cover" />
+              )}
+              {m.kind === 'video' && <span className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">VIDEO</span>}
+              <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/55 px-1 py-0.5 text-white">
+                <button type="button" aria-label="Move left" className="px-1.5 disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)}>
+                  <ChevronLeftIcon />
+                </button>
+                <button type="button" aria-label="Remove" className="px-1.5 text-xs font-semibold" onClick={() => onChange(value.filter((_, k) => k !== i))}>
+                  Remove
+                </button>
+                <button type="button" aria-label="Move right" className="px-1.5 disabled:opacity-30" disabled={i === value.length - 1} onClick={() => move(i, 1)}>
+                  <ChevronRightIcon />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+        className="hidden"
+        onChange={(e) => pick(e.target.files)}
+      />
+      <button type="button" className="btn btn-ghost w-full !py-2.5 text-sm" disabled={!!progress} onClick={() => input.current?.click()}>
+        {progress || 'Add photos or videos'}
+      </button>
+      <p className="admin-help">You can pick several at once. Photos up to 15 MB, videos up to 90 MB. They show on the item&rsquo;s page after the main photo.</p>
+      {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
     </div>
   )
 }

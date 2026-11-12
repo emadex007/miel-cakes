@@ -1,6 +1,6 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Field, MediaField, Messages, PageTitle, Toggle, useAction } from '~/components/admin/ui'
+import { Field, MediaField, MediaListField, Messages, PageTitle, Toggle, useAction } from '~/components/admin/ui'
 import { getProductAdmin, saveProduct, type ProductInput } from '~/fns/admin'
 import { ArrowLeftIcon, CloseIcon } from '~/components/icons'
 
@@ -29,6 +29,7 @@ function ProductEditor() {
           badge: product.badge ?? '',
           customizable: !!product.customizable,
           sort: product.sort,
+          media: product.media ?? [],
         }
       : {
           category_id: categories[0]?.id ?? 0,
@@ -43,6 +44,7 @@ function ProductEditor() {
           badge: '',
           customizable: false,
           sort: 0,
+          media: [],
         },
   )
   const set = <K extends keyof ProductInput>(k: K, v: ProductInput[K]) => setForm((f) => ({ ...f, [k]: v }))
@@ -135,9 +137,13 @@ function ProductEditor() {
 
         <div className="space-y-6">
           <div className="admin-card p-6">
-            <Field label="Photo" htmlFor="p-image">
+            <Field label="Main photo" htmlFor="p-image" help="Shown on the menu and at the top of the item's page.">
               <MediaField id="p-image" value={form.image_url} onChange={(v) => set('image_url', v)} />
             </Field>
+            <div className="mt-6 border-t border-[#eceff5] pt-5">
+              <p className="admin-label">More photos and videos</p>
+              <MediaListField value={form.media ?? []} onChange={(v) => set('media', v)} />
+            </div>
           </div>
           <div className="admin-card space-y-5 p-6">
             <Field label="When can customers get it?" htmlFor="p-avail">

@@ -1,8 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { Order, OrderStatus } from '~/lib/orders'
 import { hashPassword, requireAdmin, requireOwner } from '~/server/auth'
-import { db } from '~/server/db'
+import { db, workerEnv } from '~/server/db'
 import { loadOrder } from '~/server/orders'
+import { orderStatusChanged } from '~/server/happenings'
+import { siteOrigin } from '~/server/util'
 
 const str = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max)
 const int = (v: unknown, fallback = 0) => {
@@ -16,7 +18,7 @@ export const listOrders = createServerFn({ method: 'GET' }).handler(async () => 
   const { results } = await db()
     .prepare(
       `SELECT o.id, o.code, o.status, o.fulfilment, o.needed_date, o.time_slot, o.discount, o.discount_code, o.total, o.payment_method, o.payment_status, o.proof_key,
-              o.created_at, o.contact_phone, c.name AS customer_name, z.name AS zone_name,
+              o.created_at, o.contact_phone, o.own_rider, COALESCE(NULLIF(o.contact_name, ''), c.name) AS customer_name, z.name AS zone_name,
               (SELECT COALESCE(SUM(qty), 0) FROM order_items i WHERE i.order_id = o.id) AS item_count
        FROM orders o JOIN customers c ON c.id = o.customer_id LEFT JOIN delivery_zones z ON z.id = o.zone_id
        ORDER BY o.id DESC LIMIT 1000`,
@@ -44,6 +46,7 @@ export const setOrderStatus = createServerFn({ method: 'POST' })
       db().prepare(`UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?`).bind(data.status, int(data.id)),
       db().prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)').bind(int(data.id), data.status, note),
     ])
+    await orderStatusChanged(workerEnv(), siteOrigin(), int(data.id), data.status, note)
     return { ok: true }
   })
 
@@ -61,6 +64,7 @@ export const confirmPayment = createServerFn({ method: 'POST' })
         .bind(id),
       db().prepare(`INSERT INTO order_events (order_id, status, note) VALUES (?, 'received', ?)`).bind(id, str(data.note, 300) || 'Payment confirmed'),
     ])
+    await orderStatusChanged(workerEnv(), siteOrigin(), id, 'received', 'Payment confirmed. Thank you!')
     return { ok: true }
   })
 

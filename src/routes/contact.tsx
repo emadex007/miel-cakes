@@ -8,6 +8,7 @@ import { getZones } from '~/fns/public'
 import { formatNaira, lines, whatsappLink } from '~/lib/format'
 import { parseOccasions, type SiteSettings } from '~/lib/site-fields'
 import type { DeliveryZone } from '~/lib/types'
+import { DatePicker } from '~/components/DatePicker'
 
 const root = getRouteApi('__root__')
 
@@ -117,7 +118,6 @@ function ContactPage() {
   )
 }
 
-const BUDGETS = ['Not sure yet', 'Under ₦30,000', '₦30,000 – ₦70,000', '₦70,000 – ₦150,000', '₦150,000 – ₦300,000', 'Above ₦300,000']
 
 const emptyQuote = (): QuoteInput => ({
   name: '',
@@ -156,7 +156,6 @@ function buildMessage(s: SiteSettings, q: QuoteInput, code: string) {
     row('Message on cake', q.cake_message),
     row('Guests', q.guests || ''),
     row('Pickup or delivery', q.fulfilment === 'delivery' ? `Delivery${q.area ? ` to ${q.area}` : ''}` : 'Pickup'),
-    row('Budget', q.budget),
     row('More details', q.details),
     '',
     'I can send a picture of what I want here on WhatsApp.',
@@ -285,7 +284,7 @@ function QuoteForm({ s, zones }: { s: SiteSettings; zones: DeliveryZone[] }) {
         </div>
         <div>
           <label htmlFor="q-date" className={label}>Date needed</label>
-          <input id="q-date" type="date" min={today} className={input} value={q.event_date} onChange={(e) => set('event_date', e.target.value)} />
+          <DatePicker id="q-date" min={today} className={input} value={q.event_date} onChange={(v) => set('event_date', v)} />
         </div>
         <div>
           <label htmlFor="q-guests" className={label}>Number of guests (roughly)</label>
@@ -298,15 +297,6 @@ function QuoteForm({ s, zones }: { s: SiteSettings; zones: DeliveryZone[] }) {
             value={q.guests || ''}
             onChange={(e) => set('guests', Number(e.target.value) || 0)}
           />
-        </div>
-        <div>
-          <label htmlFor="q-budget" className={label}>Budget</label>
-          <select id="q-budget" className={input} value={q.budget} onChange={(e) => set('budget', e.target.value)}>
-            <option value="">Choose a range</option>
-            {BUDGETS.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
         </div>
       </fieldset>
 

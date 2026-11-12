@@ -58,14 +58,15 @@ export async function markOrderPaidByReference(db: D1Database, reference: string
   if (!order) return { ok: false, reason: 'not_found' as const }
   if (order.payment_status === 'paid') return { ok: true, already: true }
   if (Math.round(amountNaira) < order.total) return { ok: false, reason: 'amount_mismatch' as const }
-  await db.batch([
-    db
-      .prepare(
-        `UPDATE orders SET payment_status = 'paid', status = 'received', paid_at = datetime('now'), updated_at = datetime('now')
-         WHERE id = ? AND payment_status != 'paid'`,
-      )
-      .bind(order.id),
-    db.prepare(`INSERT INTO order_events (order_id, status, note) VALUES (?, 'received', 'Paid by card (Paystack)')`).bind(order.id),
-  ])
-  return { ok: true, already: false }
+  // Only the first caller (return page or webhook) changes the row, so alerts go out once
+  const upd = await db
+    .prepare(
+      `UPDATE orders SET payment_status = 'paid', status = 'received', paid_at = datetime('now'), updated_at = datetime('now')
+       WHERE id = ? AND payment_status != 'paid'`,
+    )
+    .bind(order.id)
+    .run()
+  if (!upd.meta.changes) return { ok: true, already: true }
+  await db.prepare(`INSERT INTO order_events (order_id, status, note) VALUES (?, 'received', 'Paid by card (Paystack)')`).bind(order.id).run()
+  return { ok: true, already: false, orderId: order.id }
 }

@@ -5,7 +5,7 @@ import { formatDate } from '~/components/ReceiptSheet'
 import { listBookings } from '~/fns/bookings'
 import { BOOKING_STATUS, type Booking } from '~/lib/bookings'
 import { downloadFile, toCsv, today } from '~/lib/export'
-import { formatNaira } from '~/lib/format'
+import { formatNaira, fulfilmentLabel } from '~/lib/format'
 
 export const Route = createFileRoute('/admin/bookings/')({
   loader: () => listBookings(),
@@ -46,7 +46,7 @@ function BookingsAdmin() {
         { label: 'Event date', value: (b) => b.event_date },
         { label: 'Time', value: (b) => b.event_time },
         { label: 'Guests', value: (b) => b.guests },
-        { label: 'Pickup/delivery', value: (b) => (b.fulfilment === 'delivery' ? `Delivery (${b.zone_name ?? ''})` : 'Pickup') },
+        { label: 'Pickup/delivery', value: (b) => (b.fulfilment === 'delivery' ? `Delivery (${b.zone_name ?? ''})` : fulfilmentLabel(b.fulfilment, b.own_rider)) },
         { label: 'Quote (NGN)', value: (b) => b.quote_amount },
         { label: 'Deposit (NGN)', value: (b) => b.deposit_amount },
         { label: 'Paid (NGN)', value: (b) => b.paid_amount },
@@ -116,7 +116,7 @@ function BookingsAdmin() {
                   </td>
                   <td className="px-4 py-3">
                     {b.event_type}
-                    <span className="block text-xs text-[#667085]">{b.guests} guests · {b.fulfilment === 'delivery' ? b.zone_name ?? 'Delivery' : 'Pickup'}</span>
+                    <span className="block text-xs text-[#667085]">{b.guests} guests · {b.fulfilment === 'delivery' ? b.zone_name ?? 'Delivery' : fulfilmentLabel(b.fulfilment, b.own_rider)}</span>
                   </td>
                   <td className="px-4 py-3 font-semibold">
                     {formatDate(b.event_date)}

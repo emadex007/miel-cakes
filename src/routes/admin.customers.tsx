@@ -1,10 +1,11 @@
 import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Field, Messages, PageTitle, useAction } from '~/components/admin/ui'
 import { formatDate } from '~/components/ReceiptSheet'
 import { WhatsAppIcon } from '~/components/icons'
 import { deleteClient, listClients, saveClient, type ClientInput } from '~/fns/business'
-import { downloadFile, toCsv, today } from '~/lib/export'
+import { clientsFromCsv, downloadFile, toCsv, today } from '~/lib/export'
+import { importClients } from '~/fns/notify'
 import { formatNaira, toIntlPhone, whatsappLink } from '~/lib/format'
 import type { Client } from '~/lib/types'
 
@@ -31,10 +32,37 @@ function CustomersAdmin() {
   const clients = Route.useLoaderData()
   const s = root.useLoaderData()
   const router = useRouter()
-  const { busy, error, notice, run } = useAction()
+  const { busy, error, notice, run, setNotice } = useAction()
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<ClientInput | null>(null)
   const [confirmId, setConfirmId] = useState<number | null>(null)
+  const csvInput = useRef<HTMLInputElement>(null)
+
+  async function uploadCsv(file: File | undefined) {
+    if (!file) return
+    const text = await file.text()
+    if (csvInput.current) csvInput.current.value = ''
+    const { rows, missingHeader } = clientsFromCsv(text)
+    await run(async () => {
+      if (/\.xlsx?$/i.test(file.name)) throw new Error('Save the spreadsheet as CSV first (File → Save as / Download → CSV), then upload that file.')
+      if (missingHeader) throw new Error('The first row must have column names, like Name, Phone, Email.')
+      if (!rows.length) throw new Error('No customers found in that file.')
+      let added = 0
+      let updated = 0
+      let skipped = 0
+      for (let i = 0; i < rows.length; i += 500) {
+        const r = await importClients({ data: { rows: rows.slice(i, i + 500) } })
+        added += r.added
+        updated += r.updated
+        skipped += r.skipped
+      }
+      return { added, updated, skipped }
+    }).then((r) => {
+      if (!r) return
+      setNotice(`${r.added} added${r.updated ? `, ${r.updated} got an email address` : ''}${r.skipped ? `, ${r.skipped} already on your list or empty` : ''}.`)
+      router.invalidate()
+    })
+  }
 
   const term = q.trim().toLowerCase()
   const shown = term
@@ -81,6 +109,16 @@ function CustomersAdmin() {
           title="Customers"
           actions={
             <>
+              <input ref={csvInput} type="file" accept=".csv,text/csv,.xlsx,.xls" className="hidden" onChange={(e) => uploadCsv(e.target.files?.[0])} />
+              <button
+                type="button"
+                className="btn btn-ghost text-cocoa"
+                disabled={busy}
+                onClick={() => csvInput.current?.click()}
+                title="A CSV file with columns like Name, Phone, Email, Address, Birthday"
+              >
+                {busy ? 'Uploading…' : 'Upload list (CSV)'}
+              </button>
               <button type="button" className="btn btn-ghost text-cocoa" onClick={exportCsv} disabled={!clients.length}>
                 Download (Excel)
               </button>
@@ -93,7 +131,9 @@ function CustomersAdmin() {
             </>
           }
         >
-          Everyone you&rsquo;ve served. Customers are also added when you save someone from a quote request or a receipt.
+          Everyone you&rsquo;ve served. Customers are also added when they order on the website, or when you save someone from a quote request or a receipt. To
+          add many at once, upload a CSV file (from Excel or Google Sheets) with columns like Name, Phone, Email, Address and Birthday. People already on the
+          list are not added twice. Send them festive emails under <Link to="/admin/notifications" className="font-semibold text-brand underline">Alerts &amp; emails</Link>.
         </PageTitle>
 
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">

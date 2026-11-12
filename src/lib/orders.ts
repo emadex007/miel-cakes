@@ -68,6 +68,9 @@ export interface Order {
   customer_id: number
   status: OrderStatus
   fulfilment: 'pickup' | 'delivery'
+  own_rider?: number
+  contact_name?: string
+  contact_email?: string
   zone_id: number | null
   zone_name?: string | null
   address: string

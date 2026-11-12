@@ -4,8 +4,10 @@ import type { Client, GalleryItem, QuoteRequest, Receipt, ReceiptItem } from '~/
 import { parseQuoteLines } from '~/lib/bookings'
 import { requireAdmin, requireOwner } from '~/server/auth'
 import { loadBooking } from '~/server/bookings'
-import { db } from '~/server/db'
+import { db, workerEnv } from '~/server/db'
 import { loadOrder } from '~/server/orders'
+import { quoteRequested } from '~/server/happenings'
+import { siteOrigin } from '~/server/util'
 
 // ---------- helpers ----------
 const str = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max)
@@ -118,6 +120,14 @@ export const submitQuote = createServerFn({ method: 'POST' })
     const id = Number(r.meta.last_row_id)
     const code = `Q-${1000 + id}`
     await db().prepare('UPDATE quote_requests SET code = ? WHERE id = ?').bind(code, id).run()
+    await quoteRequested(
+      workerEnv(),
+      siteOrigin(),
+      name,
+      [`${code}: ${str(data.occasion, 80) || 'Custom order'}${str(data.event_date, 20) ? ` for ${str(data.event_date, 20)}` : ''}`, items, `Phone: ${phone}`, str(data.details, 300)]
+        .filter(Boolean)
+        .join('\n'),
+    )
     return { code }
   })
 

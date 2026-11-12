@@ -4,7 +4,9 @@ import { useShop } from '~/components/Shop'
 import { checkDiscount, getCheckout, placeOrder, type PlaceOrderInput } from '~/fns/shop'
 import { customOneLine } from '~/lib/custom'
 import { formatNaira } from '~/lib/format'
-import { GiftIcon } from '~/components/icons'
+import { DatePicker } from '~/components/DatePicker'
+import { FulfilmentChoice } from '~/components/FulfilmentChoice'
+import { CheckIcon, GiftIcon } from '~/components/icons'
 
 const root = getRouteApi('__root__')
 
@@ -22,15 +24,6 @@ function CheckoutPage() {
   const router = useRouter()
   const { refresh } = useShop()
 
-  if (!data) {
-    return (
-      <div className="mx-auto max-w-xl px-4 pt-16 text-center">
-        <h1 className="font-display text-4xl">Checkout</h1>
-        <p className="mt-3 text-muted">Please sign in to check out.</p>
-        <Link to="/login" search={{ redirect: '/checkout' }} className="btn btn-primary mt-8">Sign in</Link>
-      </div>
-    )
-  }
   if (!data.lines.length) {
     return (
       <div className="mx-auto max-w-xl px-4 pt-16 text-center">
@@ -54,9 +47,12 @@ function CheckoutForm({
   bank: Record<string, string>
   onDone: (code: string) => Promise<void>
 }) {
-  const { lines, zones, blocked, pay, minDate, maxNotice, me, slots } = data
+  const { lines, zones, blocked, pay, minDate, maxNotice, me, slots, terms } = data
   const [form, setForm] = useState<PlaceOrderInput>({
     fulfilment: 'pickup',
+    contact_name: me.name,
+    contact_email: me.email,
+    agree_terms: false,
     zone_id: null,
     address: '',
     contact_phone: me.phone,
@@ -110,6 +106,7 @@ function CheckoutForm({
     if (form.fulfilment === 'delivery' && !form.zone_id) return setError('Please choose your delivery area.')
     if (dateBlocked) return setError('We’re fully booked on that date. Please choose another.')
     if (slots.length && !form.time_slot) return setError('Please choose a time for your order.')
+    if (!form.agree_terms) return setError('Please read the terms and tick the box to agree.')
     setBusy(true)
     try {
       const r = await placeOrder({ data: { ...form, zone_id: form.fulfilment === 'delivery' ? form.zone_id : null } })
@@ -126,8 +123,6 @@ function CheckoutForm({
 
   const input = 'w-full rounded-2xl border-0 bg-white px-4 py-3 ring-1 ring-line focus:ring-2 focus:ring-brand'
   const label = 'mb-1.5 block text-sm font-semibold'
-  const choice = (on: boolean) =>
-    `flex-1 cursor-pointer rounded-2xl px-4 py-3 text-center font-semibold ring-1 transition ${on ? 'bg-cocoa text-cream ring-cocoa' : 'bg-white ring-line hover:ring-brand'}`
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-16">
@@ -135,19 +130,16 @@ function CheckoutForm({
       <form onSubmit={submit} className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-6">
           <section className="space-y-4 rounded-3xl bg-soft p-6">
-            <h2 className="font-display text-2xl">1. Pickup or delivery</h2>
-            <div className="flex gap-2">
-              <label className={choice(form.fulfilment === 'pickup')}>
-                <input type="radio" name="fulfilment" className="sr-only" checked={form.fulfilment === 'pickup'} onChange={() => set('fulfilment', 'pickup')} />
-                Pickup (free)
-              </label>
-              <label className={choice(form.fulfilment === 'delivery')}>
-                <input type="radio" name="fulfilment" className="sr-only" checked={form.fulfilment === 'delivery'} onChange={() => set('fulfilment', 'delivery')} />
-                Delivery
-              </label>
-            </div>
-            {form.fulfilment === 'pickup' ? (
-              bank.address && <p className="text-sm text-cocoa/80">Pick up from: <span className="whitespace-pre-line font-semibold">{bank.address}</span></p>
+            <h2 className="font-display text-2xl">1. How will you get it?</h2>
+            <FulfilmentChoice name="fulfilment" value={form.fulfilment} onChange={(v) => set('fulfilment', v)} />
+            {form.fulfilment !== 'delivery' ? (
+              bank.address && (
+                <p className="text-sm text-cocoa/80">
+                  {form.fulfilment === 'own_rider' ? 'Your rider collects from: ' : 'Pick up from: '}
+                  <span className="whitespace-pre-line font-semibold">{bank.address}</span>
+                  {form.fulfilment === 'own_rider' && <span className="mt-1 block text-xs text-muted">Put your rider&rsquo;s name and number in the note below.</span>}
+                </p>
+              )
             ) : (
               <div className="grid gap-4">
                 <div>
@@ -173,7 +165,7 @@ function CheckoutForm({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="co-date" className={label}>Date</label>
-                <input id="co-date" type="date" required min={minDate} className={input} value={form.needed_date} onChange={(e) => set('needed_date', e.target.value)} />
+                <DatePicker id="co-date" required min={minDate} blocked={blockedSet} className={input} value={form.needed_date} onChange={(v) => set('needed_date', v)} />
                 <p className="mt-1 text-xs text-muted">
                   Earliest: {niceDate(minDate)}
                   {maxNotice > 0 ? ` (${maxNotice} days’ notice for some items)` : ''}
@@ -195,9 +187,32 @@ function CheckoutForm({
                   </select>
                 </div>
               )}
+            </div>
+          </section>
+
+          <section className="space-y-4 rounded-3xl bg-soft p-6">
+            <h2 className="font-display text-2xl">3. Your details</h2>
+            {me.guest && (
+              <p className="text-sm text-cocoa/80">
+                No account needed.{' '}
+                <Link to="/login" search={{ redirect: '/checkout' }} className="font-semibold text-brand hover:underline">
+                  Sign in
+                </Link>{' '}
+                if you have one.
+              </p>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="co-name" className={label}>Your name</label>
+                <input id="co-name" required autoComplete="name" className={input} value={form.contact_name} onChange={(e) => set('contact_name', e.target.value)} />
+              </div>
               <div>
                 <label htmlFor="co-phone" className={label}>Phone on the day</label>
-                <input id="co-phone" type="tel" required className={input} value={form.contact_phone} onChange={(e) => set('contact_phone', e.target.value)} />
+                <input id="co-phone" type="tel" required autoComplete="tel" className={input} value={form.contact_phone} onChange={(e) => set('contact_phone', e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="co-email" className={label}>Email</label>
+                <input id="co-email" type="email" required autoComplete="email" className={input} value={form.contact_email} onChange={(e) => set('contact_email', e.target.value)} placeholder="For your receipt and order updates" />
               </div>
             </div>
             <div>
@@ -207,7 +222,7 @@ function CheckoutForm({
           </section>
 
           <section className="space-y-4 rounded-3xl bg-soft p-6">
-            <h2 className="font-display text-2xl">3. Payment</h2>
+            <h2 className="font-display text-2xl">4. Payment</h2>
             <div className="grid gap-2">
               {pay.paystack && (
                 <label className={`flex cursor-pointer items-start gap-3 rounded-2xl bg-white p-4 ring-1 ${form.payment_method === 'paystack' ? 'ring-2 ring-brand' : 'ring-line'}`}>
@@ -251,7 +266,7 @@ function CheckoutForm({
             <div className="flex justify-between"><span className="text-muted">Items</span><span>{formatNaira(subtotal)}</span></div>
             <div className="flex justify-between">
               <span className="text-muted">Delivery{zone && form.fulfilment === 'delivery' ? ` (${zone.name})` : ''}</span>
-              <span>{form.fulfilment === 'delivery' ? (zone ? formatNaira(deliveryFee) : 'Choose area') : 'Free pickup'}</span>
+              <span>{form.fulfilment === 'delivery' ? (zone ? formatNaira(deliveryFee) : 'Choose area') : form.fulfilment === 'own_rider' ? 'Your rider' : 'Free pickup'}</span>
             </div>
             {applied && (
               <div className="flex justify-between text-emerald-700">
@@ -293,13 +308,38 @@ function CheckoutForm({
             )}
           </div>
           {bank.perk_text && <p className="rounded-2xl bg-honey px-4 py-3 text-center text-sm font-semibold"><GiftIcon className="mr-1.5 inline h-4 w-4 align-[-3px]" />{bank.perk_text}</p>}
+          <div className="rounded-2xl bg-cream p-4 ring-1 ring-line">
+            <p className="text-sm font-bold">Before you order</p>
+            {terms.length > 0 && (
+              <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto pr-1 text-xs text-cocoa/85">
+                {terms.map((t) => (
+                  <li key={t} className="flex gap-2">
+                    <CheckIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--c-primary)]"
+                checked={form.agree_terms}
+                onChange={(e) => set('agree_terms', e.target.checked)}
+              />
+              <span>
+                I agree to the{' '}
+                <Link to="/terms" target="_blank" className="font-semibold underline">
+                  terms and refund policy
+                </Link>
+              </span>
+            </label>
+          </div>
           {error && <p role="alert" className="rounded-2xl bg-highlight/10 px-4 py-3 text-sm font-semibold text-highlight">{error}</p>}
-          <button type="submit" className="btn btn-primary w-full !py-4 text-base" disabled={busy}>
+          <button type="submit" className="btn btn-primary w-full !py-4 text-base" disabled={busy || !form.agree_terms}>
             {busy ? 'Placing your order…' : form.payment_method === 'paystack' ? `Pay ${formatNaira(total)}` : 'Place order'}
           </button>
-          <p className="text-center text-xs text-muted">
-            By ordering you agree to our <Link to="/terms" className="underline">terms & refunds</Link>.
-          </p>
         </aside>
       </form>
     </div>

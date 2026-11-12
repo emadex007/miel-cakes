@@ -2,12 +2,14 @@ import { createServerFn } from '@tanstack/react-start'
 import type { Booking, BookingStatus, QuoteLine } from '~/lib/bookings'
 import { amountDue, parseQuoteLines } from '~/lib/bookings'
 import type { DeliveryZone } from '~/lib/types'
-import { currentCustomer, requireAdmin, requireCustomer } from '~/server/auth'
+import { currentCustomer, getOrCreateCustomer, requireAdmin, requireCustomer } from '~/server/auth'
+import { contactDetails } from '~/server/customers'
 import { loadBooking, markBookingPaidByReference, recountBookingPayments } from '~/server/bookings'
 import { db, queryZones, workerEnv } from '~/server/db'
 import { paystackInitialize, paystackVerify } from '~/server/paystack'
 import { loadSettings } from '~/server/settings'
 import { addDays, digits, int, lagosToday, paymentOptions, randomHex, siteOrigin, str } from '~/server/util'
+import { bookingPaid, bookingQuoted, bookingRequested, bookingStatusChanged } from '~/server/happenings'
 
 const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
 
@@ -31,7 +33,8 @@ export const getBookingForm = createServerFn({ method: 'GET' }).handler(async ()
       .then((r) => r.results),
     minBookingDate(),
   ])
-  return { me, zones, blocked, minDate: min.date, minDays: min.days }
+  const shown = me ? { ...me, email: me.is_guest ? '' : me.email, guest: !!me.is_guest } : null
+  return { me: shown, zones, blocked, minDate: min.date, minDays: min.days }
 })
 
 export interface BookingRequestInput {
@@ -41,8 +44,10 @@ export interface BookingRequestInput {
   guests: number
   items: string[]
   details: string
-  budget: string
-  fulfilment: 'pickup' | 'delivery'
+  /** own_rider = they send their own rider to collect from us */
+  fulfilment: 'pickup' | 'delivery' | 'own_rider'
+  contact_name: string
+  contact_email: string
   zone_id: number | null
   address: string
   contact_phone: string
@@ -51,7 +56,7 @@ export interface BookingRequestInput {
 export const requestBooking = createServerFn({ method: 'POST' })
   .validator((d: BookingRequestInput) => d)
   .handler(async ({ data }) => {
-    const me = await requireCustomer()
+    const me = await getOrCreateCustomer() // no account needed to book
     const eventType = str(data.event_type, 80)
     if (!eventType) throw new Error('What is the occasion?')
 
@@ -77,11 +82,13 @@ export const requestBooking = createServerFn({ method: 'POST' })
     }
     const phone = str(data.contact_phone, 40) || me.phone
     if (digits(phone).length < 7) throw new Error('Please enter a phone number we can reach you on.')
+    const contact = await contactDetails(me, data.contact_name, data.contact_email, phone)
 
     const r = await db()
       .prepare(
-        `INSERT INTO bookings (code, customer_id, event_type, event_date, event_time, guests, items_wanted, details, budget,
-         fulfilment, zone_id, address, contact_phone, delivery_fee, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'requested')`,
+        `INSERT INTO bookings (code, customer_id, event_type, event_date, event_time, guests, items_wanted, details,
+         fulfilment, zone_id, address, contact_phone, delivery_fee, status, contact_name, contact_email, own_rider)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'requested', ?, ?, ?)`,
       )
       .bind(
         `pending-${randomHex(6)}`,
@@ -92,12 +99,14 @@ export const requestBooking = createServerFn({ method: 'POST' })
         guests,
         items.join(', '),
         details,
-        str(data.budget, 60),
         zone ? 'delivery' : 'pickup',
         zone?.id ?? null,
         address,
         phone,
         zone?.fee ?? 0,
+        contact.name,
+        contact.email,
+        data.fulfilment === 'own_rider' ? 1 : 0,
       )
       .run()
     const id = Number(r.meta.last_row_id)
@@ -106,6 +115,7 @@ export const requestBooking = createServerFn({ method: 'POST' })
       db().prepare('UPDATE bookings SET code = ? WHERE id = ?').bind(code, id),
       db().prepare(`INSERT INTO booking_events (booking_id, status, note) VALUES (?, 'requested', 'Booking request sent from the website')`).bind(id),
     ])
+    await bookingRequested(workerEnv(), siteOrigin(), id)
     return { code }
   })
 
@@ -121,7 +131,8 @@ export const getMyBooking = createServerFn({ method: 'GET' })
     if (data.checkPayment && secret && found.booking.paystack_ref) {
       const v = await paystackVerify(secret, found.booking.paystack_ref)
       if (v?.paid && v.currency === 'NGN') {
-        await markBookingPaidByReference(db(), v.reference, v.amountNaira)
+        const paid = await markBookingPaidByReference(db(), v.reference, v.amountNaira)
+        if (paid.ok && !paid.already && paid.bookingId) await bookingPaid(workerEnv(), siteOrigin(), paid.bookingId, paid.amount ?? v.amountNaira)
         found = await loadBooking(db(), 'WHERE b.id = ?', [found.booking.id])
       }
     }
@@ -153,7 +164,7 @@ export const payBookingByCard = createServerFn({ method: 'POST' })
     const reference = `${b.code}-${randomHex(4)}`
     await db().prepare(`UPDATE bookings SET paystack_ref = ?, updated_at = datetime('now') WHERE id = ?`).bind(reference, b.id).run()
     const payUrl = await paystackInitialize(secret, {
-      email: me.email,
+      email: b.contact_email || me.email,
       amountNaira: amount,
       reference,
       callbackUrl: `${siteOrigin()}/bookings/${b.code}?paid=1`,
@@ -180,7 +191,7 @@ export const listBookings = createServerFn({ method: 'GET' }).handler(async () =
   const { results } = await db()
     .prepare(
       `SELECT b.id, b.code, b.event_type, b.event_date, b.event_time, b.guests, b.status, b.quote_amount, b.deposit_amount,
-              b.paid_amount, b.proof_pending, b.fulfilment, b.contact_phone, b.created_at, c.name AS customer_name, z.name AS zone_name
+              b.paid_amount, b.proof_pending, b.fulfilment, b.own_rider, b.contact_phone, b.created_at, COALESCE(NULLIF(b.contact_name, ''), c.name) AS customer_name, z.name AS zone_name
        FROM bookings b JOIN customers c ON c.id = b.customer_id LEFT JOIN delivery_zones z ON z.id = b.zone_id
        ORDER BY b.id DESC LIMIT 1000`,
     )
@@ -232,6 +243,7 @@ export const sendBookingQuote = createServerFn({ method: 'POST' })
         .bind(id, first ? 'quoted' : b.status, `${first ? 'Quote sent' : 'Quote updated'}: ${naira(total)}${deposit ? `, deposit ${naira(deposit)}` : ''}`),
     ])
     await recountBookingPayments(db(), id)
+    await bookingQuoted(workerEnv(), siteOrigin(), id, !first)
     return { ok: true, total, deposit }
   })
 
@@ -276,6 +288,7 @@ export const setBookingStatus = createServerFn({ method: 'POST' })
       db().prepare(`UPDATE bookings SET status = ?, proof_pending = CASE WHEN ? IN ('declined','cancelled','completed') THEN 0 ELSE proof_pending END, updated_at = datetime('now') WHERE id = ?`).bind(data.status, data.status, id),
       db().prepare('INSERT INTO booking_events (booking_id, status, note) VALUES (?, ?, ?)').bind(id, data.status, note),
     ])
+    await bookingStatusChanged(workerEnv(), siteOrigin(), id, data.status)
     return { ok: true }
   })
 

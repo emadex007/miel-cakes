@@ -31,6 +31,13 @@ export interface Product {
   badge: string
   customizable: number
   sort: number
+  /** Extra photos and videos shown on the item's page (the main photo is image_url). */
+  media: ProductMedia[]
+}
+
+export interface ProductMedia {
+  url: string
+  kind: 'image' | 'video'
 }
 
 export interface DeliveryZone {

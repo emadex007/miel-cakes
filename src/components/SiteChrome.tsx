@@ -189,8 +189,8 @@ export function SiteHeader({ s }: { s: SiteSettings }) {
             <Link
               to={me ? '/account' : '/login'}
               className="rounded-full p-2 text-cocoa transition hover:bg-honey"
-              aria-label={me ? `Your account (${me.name})` : 'Sign in'}
-              title={me ? me.name : 'Sign in'}
+              aria-label={me && !me.guest ? `Your account (${me.name})` : me ? 'Your orders' : 'Sign in'}
+              title={me && !me.guest ? me.name : me ? 'Your orders' : 'Sign in'}
             >
               <UserIcon />
             </Link>

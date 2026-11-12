@@ -7,7 +7,7 @@ import { ArrowLeftIcon, WhatsAppIcon } from '~/components/icons'
 import { confirmPayment, getOrderAdmin, resetCustomerPassword, setOrderStatus } from '~/fns/orders-admin'
 import { CustomDetails } from '~/components/CakeCustomizer'
 import { describeCustom } from '~/lib/custom'
-import { formatNaira, toIntlPhone, whatsappLink } from '~/lib/format'
+import { formatNaira, toIntlPhone, whatsappLink, fulfilmentLabel } from '~/lib/format'
 import { ADMIN_NEXT_STATUSES, ORDER_STATUS, type OrderStatus } from '~/lib/orders'
 
 const root = getRouteApi('__root__')
@@ -185,7 +185,7 @@ function OrderAdmin() {
           </section>
 
           <section className="admin-card space-y-3 p-5 text-sm">
-            <h2 className="text-lg font-bold">{order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup'}</h2>
+            <h2 className="text-lg font-bold">{fulfilmentLabel(order.fulfilment, order.own_rider)}</h2>
             <p className="text-base font-semibold">
               {formatDate(order.needed_date)}
               {order.time_slot && <span className="block text-sm font-normal text-[#667085]">{order.time_slot}</span>}

@@ -78,6 +78,9 @@ export interface Booking {
   budget: string
   reference_image: string
   fulfilment: 'pickup' | 'delivery'
+  own_rider?: number
+  contact_name?: string
+  contact_email?: string
   zone_id: number | null
   zone_name?: string | null
   address: string

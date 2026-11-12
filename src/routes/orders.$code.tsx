@@ -5,7 +5,7 @@ import { CheckIcon, StarIcon, WhatsAppIcon } from '~/components/icons'
 import { getMyOrder, retryCardPayment, submitOrderReview, switchToTransfer } from '~/fns/shop'
 import { CustomDetails } from '~/components/CakeCustomizer'
 import { describeCustom } from '~/lib/custom'
-import { formatNaira, whatsappLink } from '~/lib/format'
+import { formatNaira, whatsappLink, fulfilmentLabel } from '~/lib/format'
 
 const root = getRouteApi('__root__')
 
@@ -106,7 +106,7 @@ function OrderPage() {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-3"><dt className="text-muted">Date</dt><dd className="text-right font-semibold">{niceDate(order.needed_date)}{order.time_slot && <span className="block font-normal text-muted">{order.time_slot}</span>}</dd></div>
             <div className="flex justify-between gap-3">
-              <dt className="text-muted">{order.fulfilment === 'delivery' ? 'Delivery to' : 'Pickup'}</dt>
+              <dt className="text-muted">{order.fulfilment === 'delivery' ? 'Delivery to' : order.own_rider ? 'Your rider collects from' : 'Pickup'}</dt>
               <dd className="text-right font-semibold">{order.fulfilment === 'delivery' ? `${order.address}${order.zone_name ? `, ${order.zone_name}` : ''}` : s.address}</dd>
             </div>
             <div className="flex justify-between gap-3"><dt className="text-muted">Phone</dt><dd className="font-semibold tabular">{order.contact_phone}</dd></div>

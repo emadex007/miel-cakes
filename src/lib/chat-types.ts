@@ -5,6 +5,8 @@ export interface ChatMessage {
   sender: 'visitor' | 'admin'
   admin_name: string
   body: string
+  /** A picture sent in the chat (private storage key), or '' */
+  image_key?: string
   created_at: string
 }
 
@@ -27,3 +29,10 @@ export interface ChatConversation {
 export type ChatPollResult =
   | { gone: true }
   | { gone: false; messages: ChatMessage[]; unread: number; online: boolean; name: string; hasContact: boolean }
+
+export interface ChatBotTopic {
+  id: string
+  label: string
+  answer: string
+  link?: { href: string; label: string }
+}

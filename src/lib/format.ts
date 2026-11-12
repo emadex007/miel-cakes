@@ -47,3 +47,15 @@ export function toIntlPhone(phone: string) {
   if (d.startsWith('0') && d.length === 11) return `234${d.slice(1)}`
   return d
 }
+
+/** 2026-12-24 → 24/12/2026 (day/month/year, as used in Nigeria). */
+export function formatDMY(iso: string | undefined | null) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '')
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
+}
+
+/** How the customer gets their order, in words. */
+export function fulfilmentLabel(fulfilment: string, ownRider?: number | boolean | null) {
+  if (fulfilment === 'delivery') return 'Delivery'
+  return ownRider ? 'Own rider (collects from us)' : 'Pickup'
+}

@@ -6,6 +6,7 @@ import { addBlockedDate, listBlockedDates, removeBlockedDate } from '~/fns/order
 import { formatDate } from '~/components/ReceiptSheet'
 import type { DeliveryZone } from '~/lib/types'
 import { CloseIcon } from '~/components/icons'
+import { DatePicker } from '~/components/DatePicker'
 
 export const Route = createFileRoute('/admin/delivery')({
   loader: async () => {
@@ -149,7 +150,7 @@ function BlockedDates({ blocked }: { blocked: { date: string; reason: string }[]
       <form onSubmit={add} className="flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="bd-date" className="admin-label">Date</label>
-          <input id="bd-date" type="date" required className="admin-input" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DatePicker id="bd-date" required variant="admin" className="admin-input" value={date} onChange={setDate} />
         </div>
         <div className="min-w-[200px] flex-1">
           <label htmlFor="bd-reason" className="admin-label">Reason (customers see this)</label>

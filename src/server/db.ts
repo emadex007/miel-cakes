@@ -1,12 +1,26 @@
 // Server-only helpers. Only import these inside server function handlers or
 // server route handlers, never at the top level of a component.
 import { env } from 'cloudflare:workers'
-import type { Category, DeliveryZone, Product, ProductOption } from '~/lib/types'
+import type { Category, DeliveryZone, Product, ProductMedia, ProductOption } from '~/lib/types'
 
 export const db = () => env.DB
 export const media = () => env.MEDIA
 
-type ProductRow = Omit<Product, 'options'> & { options_json: string }
+type ProductRow = Omit<Product, 'options' | 'media'> & { options_json: string; media_json?: string }
+
+/** Reads the saved list of extra photos/videos, ignoring anything malformed. */
+export function parseMedia(json: string | undefined | null): ProductMedia[] {
+  try {
+    const parsed = JSON.parse(json || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((m) => m && typeof m.url === 'string' && m.url)
+      .map((m) => ({ url: String(m.url), kind: m.kind === 'video' ? ('video' as const) : ('image' as const) }))
+      .slice(0, 20)
+  } catch {
+    return []
+  }
+}
 
 export function mapProduct(row: ProductRow): Product {
   let options: ProductOption[] = []
@@ -20,8 +34,8 @@ export function mapProduct(row: ProductRow): Product {
   } catch {
     options = []
   }
-  const { options_json: _ignored, ...rest } = row
-  return { ...rest, options }
+  const { options_json: _ignored, media_json, ...rest } = row
+  return { ...rest, options, media: parseMedia(media_json) }
 }
 
 const PRODUCT_SELECT = `

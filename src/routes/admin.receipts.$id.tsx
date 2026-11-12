@@ -7,6 +7,7 @@ import { deleteReceipt, getReceiptAdmin, saveReceipt, type ReceiptInput } from '
 import { customOneLine } from '~/lib/custom'
 import { formatNaira, toIntlPhone, whatsappLink } from '~/lib/format'
 import type { Receipt } from '~/lib/types'
+import { DatePicker } from '~/components/DatePicker'
 
 const root = getRouteApi('__root__')
 
@@ -340,10 +341,10 @@ function ReceiptEditor() {
               </select>
             </Field>
             <Field label="Date of event / delivery" htmlFor="r-event">
-              <input id="r-event" type="date" className="admin-input" value={form.event_date} onChange={(e) => set('event_date', e.target.value)} />
+              <DatePicker id="r-event" variant="admin" className="admin-input" value={form.event_date} onChange={(v) => set('event_date', v)} />
             </Field>
             <Field label="Receipt date" htmlFor="r-issued">
-              <input id="r-issued" type="date" className="admin-input" value={form.issued_on} onChange={(e) => set('issued_on', e.target.value)} />
+              <DatePicker id="r-issued" variant="admin" className="admin-input" value={form.issued_on} onChange={(v) => set('issued_on', v)} />
             </Field>
             <Field label="Payment method" htmlFor="r-method">
               <select id="r-method" className="admin-input" value={form.payment_method} onChange={(e) => set('payment_method', e.target.value as ReceiptInput['payment_method'])}>

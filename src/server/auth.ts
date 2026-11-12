@@ -105,6 +105,7 @@ export interface CustomerUser {
   name: string
   email: string
   phone: string
+  is_guest: number
 }
 
 export async function startCustomerSession(customerId: number) {
@@ -128,7 +129,7 @@ export async function customerFromSessionId(sessionId: string | undefined | null
   if (!sessionId) return null
   const row = await db()
     .prepare(
-      `SELECT c.id, c.name, c.email, c.phone FROM sessions s
+      `SELECT c.id, c.name, c.email, c.phone, c.is_guest FROM sessions s
        JOIN customers c ON c.id = s.user_id
        WHERE s.id = ? AND s.user_type = 'customer' AND s.expires_at > ?`,
     )
@@ -138,6 +139,43 @@ export async function customerFromSessionId(sessionId: string | undefined | null
 }
 
 export const currentCustomer = () => customerFromSessionId(getCookie(CUSTOMER_COOKIE))
+
+/**
+ * The shopper for this browser. People don't need an account to order or book:
+ * the first time they add to cart (or book), we quietly make a guest record and
+ * remember it with the usual cookie. Signing in later moves their cart across.
+ */
+export async function getOrCreateCustomer(): Promise<CustomerUser> {
+  const c = await currentCustomer()
+  if (c) return c
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  const email = `guest-${hex}@guest.local`
+  const r = await db()
+    .prepare("INSERT INTO customers (name, email, phone, password_hash, is_guest) VALUES ('', ?, '', '!', 1)")
+    .bind(email)
+    .run()
+  const id = Number(r.meta.last_row_id)
+  await startCustomerSession(id)
+  return { id, name: '', email, phone: '', is_guest: 1 }
+}
+
+/** A guest's email is a placeholder, so never send anything to it. */
+export const isGuestEmail = (email: string) => /@guest\.local$/i.test(email)
+
+/**
+ * After a guest signs in or signs up, move what they did as a guest (cart,
+ * orders, bookings) onto their real account.
+ */
+export async function adoptGuest(guestId: number, customerId: number) {
+  if (!guestId || guestId === customerId) return
+  await db().batch([
+    db().prepare('UPDATE cart_items SET customer_id = ? WHERE customer_id = ?').bind(customerId, guestId),
+    db().prepare('UPDATE orders SET customer_id = ? WHERE customer_id = ?').bind(customerId, guestId),
+    db().prepare('UPDATE bookings SET customer_id = ? WHERE customer_id = ?').bind(customerId, guestId),
+    db().prepare("DELETE FROM sessions WHERE user_type = 'customer' AND user_id = ?").bind(guestId),
+  ])
+}
 
 export async function requireCustomer() {
   const c = await currentCustomer()

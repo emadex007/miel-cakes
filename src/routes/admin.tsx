@@ -79,6 +79,7 @@ const NAV: { to: string; label: string; exact?: boolean; badge?: keyof AdminAler
   { to: '/admin/quotes', label: 'Quote requests', badge: 'quotes' },
   { to: '/admin/receipts', label: 'Receipts' },
   { to: '/admin/customers', label: 'Customers' },
+  { to: '/admin/notifications', label: 'Alerts & emails' },
   { to: '/admin/discounts', label: 'Discount codes' },
   { to: '/admin/careers', label: 'Careers', badge: 'applications' },
   { to: '/admin/menu', label: 'Menu items' },
@@ -105,6 +106,17 @@ function AdminLayout() {
   // Menu badges: new orders, bookings, quotes, applications and chat messages.
   // Checked every 20 seconds; dings when something new arrives. Also keeps
   // "Online now" showing to chat visitors while the dashboard is open.
+  // "Add to Home Screen" from the dashboard opens the dashboard, not the shop
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+    if (!link) return
+    const before = link.href
+    link.href = '/admin.webmanifest'
+    return () => {
+      link.href = before
+    }
+  }, [])
+
   useEffect(() => {
     if (!admin) return
     let stop = false

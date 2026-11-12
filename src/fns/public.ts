@@ -8,6 +8,8 @@ export const getSiteSettings = createServerFn({ method: 'GET' }).handler(async (
   const [settings, categories] = await Promise.all([loadSettings(), queryCategories(true)])
   // Categories for the header menu, carried as text so every page has them
   settings.nav_categories = JSON.stringify(categories.map((c) => ({ name: c.name, slug: c.slug })))
+  // Behind-the-scenes settings the public pages never need (the dashboard loads them separately)
+  for (const key of ['alert_email', 'email_from', 'email_daily_limit', 'campaign_daily_count']) delete settings[key]
   return settings
 })
 

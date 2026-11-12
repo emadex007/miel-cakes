@@ -4,7 +4,7 @@ import { PageTitle } from '~/components/admin/ui'
 import { formatDate } from '~/components/ReceiptSheet'
 import { listOrders } from '~/fns/orders-admin'
 import { downloadFile, toCsv, today } from '~/lib/export'
-import { formatNaira } from '~/lib/format'
+import { formatNaira, fulfilmentLabel } from '~/lib/format'
 import { ORDER_STATUS, type OrderStatus } from '~/lib/orders'
 
 export const Route = createFileRoute('/admin/orders/')({
@@ -43,7 +43,7 @@ function OrdersAdmin() {
         { label: 'Phone', value: (o) => o.contact_phone },
         { label: 'Date needed', value: (o) => o.needed_date },
         { label: 'Time', value: (o) => o.time_slot },
-        { label: 'Pickup/delivery', value: (o) => (o.fulfilment === 'delivery' ? `Delivery (${o.zone_name ?? ''})` : 'Pickup') },
+        { label: 'Pickup/delivery', value: (o) => (o.fulfilment === 'delivery' ? `Delivery (${o.zone_name ?? ''})` : fulfilmentLabel(o.fulfilment, o.own_rider)) },
         { label: 'Items', value: (o) => o.item_count },
         { label: 'Discount (NGN)', value: (o) => o.discount },
         { label: 'Discount code', value: (o) => o.discount_code },
@@ -116,7 +116,7 @@ function OrdersAdmin() {
                     {formatDate(o.needed_date)}
                     {o.time_slot && <span className="block text-xs font-normal text-[#667085]">{o.time_slot}</span>}
                   </td>
-                  <td className="px-4 py-3">{o.fulfilment === 'delivery' ? `Delivery · ${o.zone_name ?? ''}` : 'Pickup'}</td>
+                  <td className="px-4 py-3">{o.fulfilment === 'delivery' ? `Delivery · ${o.zone_name ?? ''}` : fulfilmentLabel(o.fulfilment, o.own_rider)}</td>
                   <td className="px-4 py-3 text-right tabular">
                     {formatNaira(o.total)}
                     <span className={`block text-xs ${o.payment_status === 'paid' ? 'text-emerald-700' : 'text-[#98a2b3]'}`}>

@@ -4,6 +4,7 @@ import { Field, Messages, PageTitle, Toggle, useAction } from '~/components/admi
 import { formatDate } from '~/components/ReceiptSheet'
 import { deleteDiscount, listDiscounts, saveDiscount, setDiscountActive, type DiscountInput } from '~/fns/discounts'
 import { formatNaira } from '~/lib/format'
+import { DatePicker } from '~/components/DatePicker'
 
 export const Route = createFileRoute('/admin/discounts')({
   loader: () => listDiscounts(),
@@ -92,10 +93,10 @@ function DiscountsAdmin() {
               <input id="d-max" inputMode="numeric" className="admin-input tabular" value={editing.max_uses || ''} onChange={(e) => set('max_uses', num(e.target.value))} placeholder="0" />
             </Field>
             <Field label="Starts on (optional)" htmlFor="d-start">
-              <input id="d-start" type="date" className="admin-input" value={editing.starts_on} onChange={(e) => set('starts_on', e.target.value)} />
+              <DatePicker id="d-start" variant="admin" className="admin-input" value={editing.starts_on} onChange={(v) => set('starts_on', v)} />
             </Field>
             <Field label="Ends on (optional)" htmlFor="d-end" help="It stops working after this day.">
-              <input id="d-end" type="date" className="admin-input" value={editing.ends_on} onChange={(e) => set('ends_on', e.target.value)} />
+              <DatePicker id="d-end" variant="admin" className="admin-input" value={editing.ends_on} onChange={(v) => set('ends_on', v)} />
             </Field>
             <Field label="Note for yourself (optional)" htmlFor="d-note">
               <input id="d-note" className="admin-input" value={editing.note} onChange={(e) => set('note', e.target.value)} placeholder="e.g. Instagram Christmas promo" />

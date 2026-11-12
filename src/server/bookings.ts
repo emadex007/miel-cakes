@@ -5,7 +5,7 @@ import type { Booking, BookingEvent, BookingPayment } from '~/lib/bookings'
 export async function loadBooking(db: D1Database, where: string, bind: unknown[]) {
   const booking = await db
     .prepare(
-      `SELECT b.*, z.name AS zone_name, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone
+      `SELECT b.*, z.name AS zone_name, COALESCE(NULLIF(b.contact_name, ''), c.name) AS customer_name, COALESCE(NULLIF(b.contact_email, ''), c.email) AS customer_email, c.phone AS customer_phone
        FROM bookings b LEFT JOIN delivery_zones z ON z.id = b.zone_id JOIN customers c ON c.id = b.customer_id ${where}`,
     )
     .bind(...bind)
@@ -57,10 +57,11 @@ export async function markBookingPaidByReference(db: D1Database, reference: stri
   if (!b) return { ok: false, reason: 'not_found' as const }
   const existing = await db.prepare('SELECT id FROM booking_payments WHERE reference = ?').bind(reference).first()
   if (existing) return { ok: true, already: true }
-  await db
+  const ins = await db
     .prepare(`INSERT OR IGNORE INTO booking_payments (booking_id, amount, method, reference, note) VALUES (?, ?, 'paystack', ?, 'Paid by card (Paystack)')`)
     .bind(b.id, Math.round(amountNaira), reference)
     .run()
+  if (!ins.meta.changes) return { ok: true, already: true } // the webhook and return page arrived together
   await recountBookingPayments(db, b.id, { proofChecked: true }) // adds "date booked" / "paid in full" to the history
-  return { ok: true, already: false }
+  return { ok: true, already: false, bookingId: b.id, amount: Math.round(amountNaira) }
 }

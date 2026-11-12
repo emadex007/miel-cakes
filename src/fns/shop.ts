@@ -4,8 +4,10 @@ import { CHOICE_GROUPS, TEXT_FIELDS, customExtra, parseChoices, parseCustom, typ
 import type { CartLine, Order, OrderStatus } from '~/lib/orders'
 import type { DeliveryZone, Product } from '~/lib/types'
 import {
+  adoptGuest,
   currentCustomer,
   endCustomerSession,
+  getOrCreateCustomer,
   hashPassword,
   requireCustomer,
   startCustomerSession,
@@ -17,6 +19,8 @@ import { loadOrder } from '~/server/orders'
 import { discountFor, findDiscount, normaliseCode } from '~/server/discounts'
 import { paystackInitialize, paystackVerify, markOrderPaidByReference } from '~/server/paystack'
 import { loadSettings } from '~/server/settings'
+import { addClientRecord, contactDetails } from '~/server/customers'
+import { orderPaid, orderPlaced } from '~/server/happenings'
 
 // ---------- helpers ----------
 const str = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max)
@@ -56,7 +60,8 @@ export const getMe = createServerFn({ method: 'GET' }).handler(async () => {
   const c = await currentCustomer()
   if (!c) return null
   const row = await db().prepare('SELECT COALESCE(SUM(qty), 0) AS n FROM cart_items WHERE customer_id = ?').bind(c.id).first<{ n: number }>()
-  return { ...c, cartCount: row?.n ?? 0 }
+  // Guests have a cart but no account: don't show a placeholder email
+  return { ...c, email: c.is_guest ? '' : c.email, guest: !!c.is_guest, cartCount: row?.n ?? 0 }
 })
 
 export const signUp = createServerFn({ method: 'POST' })
@@ -71,19 +76,22 @@ export const signUp = createServerFn({ method: 'POST' })
     if (String(data.password ?? '').length < 8) throw new Error('Your password must be at least 8 characters.')
     const exists = await db().prepare('SELECT id FROM customers WHERE email = ?').bind(email).first()
     if (exists) throw new Error('An account with this email already exists. Sign in instead.')
+    const guest = await currentCustomer()
+    if (guest?.is_guest) {
+      // Turn the guest record into a real account, so their orders stay with them
+      await db()
+        .prepare('UPDATE customers SET name = ?, email = ?, phone = ?, password_hash = ?, is_guest = 0 WHERE id = ?')
+        .bind(name, email, phone, await hashPassword(String(data.password)), guest.id)
+        .run()
+      await addClientRecord(name, phone, email)
+      return { ok: true }
+    }
     const r = await db()
       .prepare('INSERT INTO customers (name, email, phone, password_hash) VALUES (?, ?, ?, ?)')
       .bind(name, email, phone, await hashPassword(String(data.password)))
       .run()
     const id = Number(r.meta.last_row_id)
-    // Also add them to the owner's customer records, unless that phone is already there
-    const known = await db().prepare("SELECT id FROM clients WHERE phone = ? AND phone != ''").bind(phone).first()
-    if (!known) {
-      await db()
-        .prepare("INSERT INTO clients (name, phone, email, source, notes) VALUES (?, ?, ?, 'website', 'Signed up on the website')")
-        .bind(name, phone, email)
-        .run()
-    }
+    await addClientRecord(name, phone, email)
     await startCustomerSession(id)
     return { ok: true }
   })
@@ -98,6 +106,9 @@ export const signIn = createServerFn({ method: 'POST' })
     if (!row || !(await verifyPassword(String(data.password ?? ''), row.password_hash))) {
       throw new Error('That email and password don’t match. Check them and try again.')
     }
+    // Bring across anything they added or ordered before signing in
+    const guest = await currentCustomer()
+    if (guest?.is_guest) await adoptGuest(guest.id, row.id)
     await startCustomerSession(row.id)
     return { ok: true }
   })
@@ -128,7 +139,7 @@ export const updateMyDetails = createServerFn({ method: 'POST' })
 // =====================================================================
 // Cart
 // =====================================================================
-type ProductRow = Omit<Product, 'options'> & { options_json: string }
+type ProductRow = Omit<Product, 'options' | 'media'> & { options_json: string; media_json?: string }
 
 async function cartLines(customerId: number): Promise<CartLine[]> {
   const { results } = await db()
@@ -205,11 +216,16 @@ async function cleanCustom(custom: CakeCustom | undefined | null): Promise<strin
   return Object.keys(out).length ? JSON.stringify(out) : ''
 }
 
+/** Starts a guest cart for this browser (no account needed to order). */
+export const startGuest = createServerFn({ method: 'POST' }).handler(async () => {
+  const me = await getOrCreateCustomer()
+  return { id: me.id }
+})
+
 export const addToCart = createServerFn({ method: 'POST' })
   .validator((d: { product_id: number; option_label: string; qty: number; note: string; custom?: CakeCustom | null; ref_key?: string }) => d)
   .handler(async ({ data }) => {
-    const me = await currentCustomer()
-    if (!me) return { needLogin: true as const }
+    const me = await getOrCreateCustomer()
     const row = await db().prepare('SELECT * FROM products WHERE id = ?').bind(int(data.product_id)).first<ProductRow>()
     if (!row) throw new Error('That item is no longer on the menu.')
     const product = mapProduct(row)
@@ -258,10 +274,10 @@ export const updateCartItem = createServerFn({ method: 'POST' })
   })
 
 export const getCheckout = createServerFn({ method: 'GET' }).handler(async () => {
-  const me = await currentCustomer()
-  if (!me) return null
+  const found = await currentCustomer()
+  const me = found ? { ...found, email: found.is_guest ? '' : found.email, guest: !!found.is_guest } : null
   const [lines, zones, blocked, pay, settings, full] = await Promise.all([
-    cartLines(me.id),
+    me ? cartLines(me.id) : Promise.resolve([] as CartLine[]),
     queryZones(true),
     db()
       .prepare('SELECT date, reason FROM blocked_dates WHERE date >= ? ORDER BY date')
@@ -275,8 +291,25 @@ export const getCheckout = createServerFn({ method: 'GET' }).handler(async () =>
   const maxNotice = Math.max(0, ...lines.map((l) => (l.availability === 'preorder' ? l.notice_days : 0)))
   const known = new Set(blocked.map((b) => b.date))
   const allBlocked = [...blocked, ...full.filter((d) => !known.has(d)).map((date) => ({ date, reason: 'Fully booked' }))].sort((a, b) => a.date.localeCompare(b.date))
-  return { me, lines, zones, blocked: allBlocked, pay, minDate: addDays(lagosToday(), maxNotice), maxNotice, slots: timeSlots(settings) }
+  return {
+    me: me ?? { id: 0, name: '', email: '', phone: '', is_guest: 1, guest: true },
+    lines,
+    zones,
+    blocked: allBlocked,
+    pay,
+    minDate: addDays(lagosToday(), maxNotice),
+    maxNotice,
+    slots: timeSlots(settings),
+    terms: termsSummary(settings),
+  }
 })
+
+/** The short "before you order" points shown in a box at checkout. */
+const termsSummary = (settings: Record<string, string>) =>
+  (settings.checkout_terms ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
 
 const timeSlots = (settings: Record<string, string>) =>
   (settings.delivery_slots ?? '')
@@ -315,7 +348,11 @@ export const checkDiscount = createServerFn({ method: 'POST' })
 // Place order + pay
 // =====================================================================
 export interface PlaceOrderInput {
-  fulfilment: 'pickup' | 'delivery'
+  /** own_rider = the customer sends their own rider to collect from us */
+  fulfilment: 'pickup' | 'delivery' | 'own_rider'
+  contact_name: string
+  contact_email: string
+  agree_terms: boolean
   zone_id: number | null
   address: string
   contact_phone: string
@@ -375,6 +412,9 @@ export const placeOrder = createServerFn({ method: 'POST' })
     }
     const phone = str(data.contact_phone, 40) || me.phone
     if (digits(phone).length < 7) throw new Error('Please enter a phone number we can reach you on.')
+    const contact = await contactDetails(me, data.contact_name, data.contact_email, phone)
+    if (!data.agree_terms) throw new Error('Please tick the box to agree to our terms before ordering.')
+    const ownRider = data.fulfilment === 'own_rider' ? 1 : 0
 
     // Payment method
     const pay = await paymentOptions()
@@ -398,8 +438,8 @@ export const placeOrder = createServerFn({ method: 'POST' })
     const r = await db()
       .prepare(
         `INSERT INTO orders (code, customer_id, status, fulfilment, zone_id, address, contact_phone, needed_date, time_slot, subtotal,
-         delivery_fee, discount_code, discount, total, payment_method, payment_status, note)
-         VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?)`,
+         delivery_fee, discount_code, discount, total, payment_method, payment_status, note, contact_name, contact_email, own_rider)
+         VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?, ?, ?, ?)`,
       )
       .bind(
         `pending-${randomHex(6)}`,
@@ -417,6 +457,9 @@ export const placeOrder = createServerFn({ method: 'POST' })
         total,
         method,
         str(data.note, 1000),
+        contact.name,
+        contact.email,
+        ownRider,
       )
       .run()
     const id = Number(r.meta.last_row_id)
@@ -432,10 +475,11 @@ export const placeOrder = createServerFn({ method: 'POST' })
       db().prepare('DELETE FROM cart_items WHERE customer_id = ?').bind(me.id),
       ...(discountCode ? [db().prepare('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?').bind(discountCode)] : []),
     ])
+    await orderPlaced(workerEnv(), siteOrigin(), id) // phone alert + emails
 
     if (method === 'paystack') {
       try {
-        const payUrl = await startPaystack({ id, code, total }, me.email)
+        const payUrl = await startPaystack({ id, code, total }, contact.email)
         return { code, payUrl }
       } catch (e) {
         return { code, payUrl: null, payError: e instanceof Error ? e.message : 'Card payment could not start.' }
@@ -457,7 +501,8 @@ export const getMyOrder = createServerFn({ method: 'GET' })
     if (data.checkPayment && secret && found.order.paystack_ref && found.order.payment_status !== 'paid') {
       const v = await paystackVerify(secret, found.order.paystack_ref)
       if (v?.paid && v.currency === 'NGN') {
-        await markOrderPaidByReference(db(), v.reference, v.amountNaira)
+        const paid = await markOrderPaidByReference(db(), v.reference, v.amountNaira)
+        if (paid.ok && !paid.already && paid.orderId) await orderPaid(workerEnv(), siteOrigin(), paid.orderId, 'Paid by card')
         found = await loadOrder('WHERE o.id = ?', [found.order.id])
       }
     }
@@ -474,12 +519,12 @@ export const retryCardPayment = createServerFn({ method: 'POST' })
   .handler(async ({ data: code }) => {
     const me = await requireCustomer()
     const o = await db()
-      .prepare("SELECT id, code, total FROM orders WHERE code = ? AND customer_id = ? AND payment_status = 'unpaid' AND status != 'cancelled'")
+      .prepare("SELECT id, code, total, contact_email FROM orders WHERE code = ? AND customer_id = ? AND payment_status = 'unpaid' AND status != 'cancelled'")
       .bind(code, me.id)
-      .first<{ id: number; code: string; total: number }>()
+      .first<{ id: number; code: string; total: number; contact_email: string }>()
     if (!o) throw new Error('This order can’t be paid online.')
     if (!(await paymentOptions()).paystack) throw new Error('Card payment isn’t available right now. Please pay by bank transfer.')
-    return { payUrl: await startPaystack(o, me.email) }
+    return { payUrl: await startPaystack(o, o.contact_email || me.email) }
   })
 
 export const switchToTransfer = createServerFn({ method: 'POST' })
@@ -529,7 +574,16 @@ export const myOrders = createServerFn({ method: 'GET' }).handler(async () => {
     .prepare('SELECT id, code, status, fulfilment, needed_date, total, payment_status, created_at FROM orders WHERE customer_id = ? ORDER BY id DESC LIMIT 100')
     .bind(me.id)
     .all<Pick<Order, 'id' | 'code' | 'status' | 'fulfilment' | 'needed_date' | 'total' | 'payment_status' | 'created_at'>>()
-  return { me, orders: results }
+  if (!me.is_guest) return { me: { ...me, guest: false }, orders: results }
+  // Guests: offer to save an account, filled in from their last order or booking
+  const last = await db()
+    .prepare(
+      `SELECT contact_email AS email FROM orders WHERE customer_id = ? AND contact_email != ''
+       UNION ALL SELECT contact_email FROM bookings WHERE customer_id = ? AND contact_email != '' LIMIT 1`,
+    )
+    .bind(me.id, me.id)
+    .first<{ email: string }>()
+  return { me: { ...me, email: last?.email ?? '', guest: true }, orders: results }
 })
 
 // =====================================================================
@@ -574,6 +628,7 @@ export const trackOrder = createServerFn({ method: 'POST' })
       code: order.code,
       status: order.status as OrderStatus,
       fulfilment: order.fulfilment,
+      own_rider: order.own_rider ?? 0,
       needed_date: order.needed_date,
       time_slot: order.time_slot ?? '',
       zone_name: order.zone_name ?? '',

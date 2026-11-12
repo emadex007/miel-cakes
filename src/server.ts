@@ -2,6 +2,8 @@ import handler from '@tanstack/react-start/server-entry'
 import { markBookingPaidByReference } from '~/server/bookings'
 import { adminAlerts } from '~/server/admin-alerts'
 import { handleChatApi } from '~/server/chat-api'
+import { bookingPaid, orderPaid, proofUploaded } from '~/server/happenings'
+import { sendCampaignBatch, unsubscribeByToken } from '~/server/campaigns'
 import { markOrderPaidByReference, paystackSignatureValid, paystackVerify } from '~/server/paystack'
 
 // Worker entry (see `main` in wrangler.toml). Handles media and uploads directly,
@@ -34,7 +36,25 @@ const VIDEO_TYPES: Record<string, string> = {
   'video/quicktime': 'mov',
 }
 
+function htmlPage(title: string, text: string, extra = '') {
+  const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title></head>
+<body style="margin:0;background:#faf5f1;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2a1a14">
+<main style="max-width:460px;margin:12vh auto;background:#fff;border-radius:20px;padding:32px 26px;text-align:center">
+<h1 style="font-family:Georgia,serif;font-weight:normal;margin:0 0 12px">${esc(title)}</h1><p style="line-height:1.6;margin:0">${esc(text)}</p>${extra}
+<p style="margin-top:22px"><a href="/" style="color:#1D4ED8">Back to the website</a></p></main></body></html>`,
+    { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+  )
+}
+
 export default {
+  // Daily schedule (wrangler.toml [triggers]): sends the next batch of festive emails
+  async scheduled(_controller: ScheduledController, env: AppEnv, ctx: ExecutionContext) {
+    const origin = env.CANONICAL_HOST ? `https://${env.CANONICAL_HOST}` : 'https://mielcakes.com'
+    ctx.waitUntil(sendCampaignBatch(env, origin).then((r) => console.log('festive emails sent', r)))
+  },
+
   async fetch(request: Request, env: AppEnv) {
     const url = new URL(request.url)
 
@@ -143,6 +163,7 @@ export default {
         env.DB.prepare(`INSERT INTO order_events (order_id, status, note) VALUES (?, 'awaiting_confirmation', 'Proof of payment uploaded')`).bind(order.id),
       ])
       if (order.proof_key) await env.MEDIA.delete(order.proof_key)
+      await proofUploaded(env, url.origin, 'order', order.id, code)
       return json({ ok: true })
     }
 
@@ -160,6 +181,23 @@ export default {
       headers.set('cache-control', 'private, no-store')
       headers.set('x-content-type-options', 'nosniff')
       return new Response(obj.body, { headers })
+    }
+
+    // Unsubscribe from festive emails:  /api/unsubscribe?t=<token>
+    // GET shows a confirm button (so link-checking robots can't unsubscribe people); POST does it.
+    if (url.pathname === '/api/unsubscribe') {
+      const token = (url.searchParams.get('t') ?? '').slice(0, 64)
+      if (request.method === 'POST') {
+        const ok = await unsubscribeByToken(env.DB, token)
+        const oneClick = (request.headers.get('content-type') ?? '').includes('form') && !(await request.clone().text()).includes('confirm=1')
+        if (oneClick) return new Response('ok')
+        return htmlPage(ok ? 'You’re unsubscribed' : 'Link not recognised', ok ? 'You won’t get any more festive emails from us. You’ll still get updates about orders you place.' : 'This unsubscribe link is not valid. If you keep getting emails, reply to one and we’ll take you off the list.')
+      }
+      return htmlPage(
+        'Unsubscribe',
+        'Stop getting festive and promotional emails from us? You’ll still get updates about orders you place.',
+        `<form method="post"><input type="hidden" name="confirm" value="1"><button style="margin-top:12px;background:#1D4ED8;color:#fff;border:0;border-radius:999px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer">Yes, unsubscribe me</button></form>`,
+      )
     }
 
     // Dashboard menu badges:  GET /api/admin/alerts
@@ -309,6 +347,7 @@ async function bookingUpload(request: Request, env: AppEnv, url: URL) {
       env.DB.prepare(`INSERT INTO booking_events (booking_id, status, note) VALUES (?, ?, 'Proof of payment uploaded')`).bind(b.id, next),
     ])
     if (b.proof_key) await env.MEDIA.delete(b.proof_key)
+    await proofUploaded(env, url.origin, 'booking', b.id, code)
   } else {
     await env.DB.prepare(`UPDATE bookings SET reference_image = ?, updated_at = datetime('now') WHERE id = ?`).bind(key, b.id).run()
     if (b.reference_image) await env.MEDIA.delete(b.reference_image)
@@ -442,8 +481,14 @@ async function paystackWebhook(request: Request, env: AppEnv) {
     // Never trust the webhook body alone: confirm with Paystack's API
     const v = await paystackVerify(secret, event.data.reference)
     if (v?.paid && v.currency === 'NGN') {
-      if (v.reference.startsWith('MB-')) await markBookingPaidByReference(env.DB, v.reference, v.amountNaira)
-      else await markOrderPaidByReference(env.DB, v.reference, v.amountNaira)
+      const origin = new URL(request.url).origin
+      if (v.reference.startsWith('MB-')) {
+        const r = await markBookingPaidByReference(env.DB, v.reference, v.amountNaira)
+        if (r.ok && !r.already && r.bookingId) await bookingPaid(env, origin, r.bookingId, r.amount ?? v.amountNaira)
+      } else {
+        const r = await markOrderPaidByReference(env.DB, v.reference, v.amountNaira)
+        if (r.ok && !r.already && r.orderId) await orderPaid(env, origin, r.orderId, 'Paid by card')
+      }
     }
   }
   return new Response('ok')

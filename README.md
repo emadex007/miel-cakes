@@ -161,6 +161,24 @@ Bank transfer works out of the box. To accept cards too:
 
 The same switch turns on card payment for event booking deposits and balances. The one webhook URL handles both orders and bookings.
 
+## Turning on emails (Resend)
+
+Order alerts to your inbox, order updates to customers, and festive emails all go through [Resend](https://resend.com) (free: 100 emails a day, 3,000 a month).
+
+1. Create a free account at resend.com.
+2. **Domains → Add domain** → `mielcakes.com`. Choose **Sign in to Cloudflare** so Resend adds its DNS records for you (or copy them into Cloudflare → DNS). Wait for **Verified**.
+3. **API Keys → Create API key** (Sending access), copy it, then:
+   ```powershell
+   npx wrangler secret put RESEND_API_KEY
+   ```
+4. In the dashboard: **Settings & colours → Alerts & emails**: put the email that should get order alerts. Then **Alerts & emails** in the menu → **Send me a test email**.
+
+Festive emails go out in daily batches (about 80 a day, set in Settings) so order emails always have room. A daily schedule in `wrangler.toml` (`[triggers]`) sends the next batch at about 9:17am Abuja time.
+
+## Phone alerts
+
+Nothing to set up on Cloudflare: the site makes its own notification keys the first time. On each phone: open the dashboard → **Alerts & emails** → **Turn on alerts on this phone**. On iPhone, first add the dashboard to the Home Screen (Share → Add to Home Screen) and open it from there; Apple only allows website alerts that way.
+
 ## Updating an existing install
 
 Updates arrive through GitHub. To get one:

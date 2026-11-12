@@ -5,7 +5,7 @@ import { db } from './db'
 export async function loadOrder(where: string, bind: unknown[]) {
   const order = await db()
     .prepare(
-      `SELECT o.*, z.name AS zone_name, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone
+      `SELECT o.*, z.name AS zone_name, COALESCE(NULLIF(o.contact_name, ''), c.name) AS customer_name, COALESCE(NULLIF(o.contact_email, ''), c.email) AS customer_email, c.phone AS customer_phone
        FROM orders o LEFT JOIN delivery_zones z ON z.id = o.zone_id JOIN customers c ON c.id = o.customer_id ${where}`,
     )
     .bind(...bind)

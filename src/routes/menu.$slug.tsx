@@ -10,6 +10,7 @@ import { addToCart } from '~/fns/shop'
 import { savePendingItem, useShop } from '~/components/Shop'
 import { formatNaira, whatsappLink } from '~/lib/format'
 import { jsonLd, productJsonLd } from '~/lib/seo'
+import { ProductGallery } from '~/components/ProductGallery'
 
 const root = getRouteApi('__root__')
 
@@ -89,14 +90,13 @@ function ProductPage() {
       </nav>
 
       <div className="mt-6 grid gap-10 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-[2rem] bg-soft lg:sticky lg:top-24 lg:self-start">
-          {p.image_url && <img src={p.image_url} alt={p.name} className={`h-full w-full object-cover ${soldOut ? 'grayscale' : ''}`} />}
+        <ProductGallery main={p.image_url} media={p.media ?? []} alt={p.name} grey={soldOut}>
           {p.availability === 'preorder' && !soldOut && (
             <span className="float absolute right-4 top-4 rounded-full bg-accent px-4 py-2 text-sm font-bold text-cocoa shadow-lg">
               Order {p.notice_days} day{p.notice_days === 1 ? '' : 's'} ahead
             </span>
           )}
-        </div>
+        </ProductGallery>
 
         <div>
           <h1 className="font-display text-4xl sm:text-5xl">{p.name}</h1>

@@ -2,7 +2,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useShop } from '~/components/Shop'
 import { myBookings } from '~/fns/bookings'
-import { myOrders, signOut, updateMyDetails } from '~/fns/shop'
+import { myOrders, signOut, signUp, updateMyDetails } from '~/fns/shop'
 import { BOOKING_STATUS } from '~/lib/bookings'
 import { formatNaira } from '~/lib/format'
 import { ORDER_STATUS } from '~/lib/orders'
@@ -46,9 +46,13 @@ function AccountPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow text-brand">Your account</p>
-          <h1 className="font-display text-4xl sm:text-5xl">Hello, {me.name.split(' ')[0]}</h1>
+          <h1 className="font-display text-4xl sm:text-5xl">{me.name ? `Hello, ${me.name.split(' ')[0]}` : 'Your orders'}</h1>
         </div>
-        <button type="button" onClick={logout} className="btn btn-ghost text-cocoa">Sign out</button>
+        {me.guest ? (
+          <Link to="/login" search={{ redirect: '/account' }} className="btn btn-ghost text-cocoa">Sign in</Link>
+        ) : (
+          <button type="button" onClick={logout} className="btn btn-ghost text-cocoa">Sign out</button>
+        )}
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
@@ -99,7 +103,17 @@ function AccountPage() {
             </ul>
           )}
         </section>
-        <DetailsForm me={me} onSaved={refresh} />
+        {me.guest ? (
+          <SaveAccount
+            me={me}
+            onSaved={async () => {
+              await refresh()
+              await router.invalidate()
+            }}
+          />
+        ) : (
+          <DetailsForm me={me} onSaved={refresh} />
+        )}
       </div>
     </div>
   )
@@ -148,6 +162,40 @@ function DetailsForm({ me, onSaved }: { me: { name: string; email: string; phone
       </details>
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`text-sm font-semibold ${msg.ok ? 'text-emerald-700' : 'text-highlight'}`}>{msg.text}</p>}
       <button type="submit" className="btn btn-primary w-full" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+    </form>
+  )
+}
+
+/** Guests (who ordered without an account) can save one, to see their orders on any device. */
+function SaveAccount({ me, onSaved }: { me: { name: string; email: string; phone: string }; onSaved: () => Promise<void> }) {
+  const [form, setForm] = useState({ name: me.name, email: me.email, phone: me.phone, password: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const input = 'w-full rounded-2xl border-0 bg-cream px-4 py-3 ring-1 ring-line focus:ring-2 focus:ring-brand'
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await signUp({ data: form })
+      await onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save. Try again.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="h-fit space-y-4 rounded-3xl bg-white p-6 ring-1 ring-line">
+      <h2 className="font-display text-2xl">Save your account</h2>
+      <p className="text-sm text-muted">Optional. Add a password to see your orders on any phone or computer, and check out faster next time.</p>
+      <input aria-label="Name" required autoComplete="name" placeholder="Name" className={input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      <input aria-label="Email" type="email" required autoComplete="email" placeholder="Email" className={input} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+      <input aria-label="Phone" type="tel" required autoComplete="tel" placeholder="Phone" className={input} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+      <input aria-label="Password" type="password" required autoComplete="new-password" placeholder="Password (8+ characters)" className={input} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+      {error && <p role="alert" className="text-sm font-semibold text-highlight">{error}</p>}
+      <button type="submit" className="btn btn-primary w-full" disabled={busy}>{busy ? 'Saving…' : 'Save account'}</button>
     </form>
   )
 }

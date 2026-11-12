@@ -31,6 +31,7 @@ import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminChatRouteImport } from './routes/admin.chat'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminDeliveryRouteImport } from './routes/admin.delivery'
 import { Route as AdminDiscountsRouteImport } from './routes/admin.discounts'
 import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
@@ -163,6 +164,11 @@ const AdminContentRoute = AdminContentRouteImport.update({
 const AdminCustomersRoute = AdminCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDeliveryRoute = AdminDeliveryRouteImport.update({
@@ -303,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/admin/chat': typeof AdminChatRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/delivery': typeof AdminDeliveryRoute
   '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/gallery': typeof AdminGalleryRoute
@@ -349,6 +356,7 @@ export interface FileRoutesByTo {
   '/admin/chat': typeof AdminChatRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/delivery': typeof AdminDeliveryRoute
   '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/gallery': typeof AdminGalleryRoute
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/admin/chat': typeof AdminChatRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/delivery': typeof AdminDeliveryRoute
   '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/gallery': typeof AdminGalleryRoute
@@ -446,6 +455,7 @@ export interface FileRouteTypes {
     | '/admin/chat'
     | '/admin/content'
     | '/admin/customers'
+    | '/admin/notifications'
     | '/admin/delivery'
     | '/admin/discounts'
     | '/admin/gallery'
@@ -492,6 +502,7 @@ export interface FileRouteTypes {
     | '/admin/chat'
     | '/admin/content'
     | '/admin/customers'
+    | '/admin/notifications'
     | '/admin/delivery'
     | '/admin/discounts'
     | '/admin/gallery'
@@ -539,6 +550,7 @@ export interface FileRouteTypes {
     | '/admin/chat'
     | '/admin/content'
     | '/admin/customers'
+    | '/admin/notifications'
     | '/admin/delivery'
     | '/admin/discounts'
     | '/admin/gallery'
@@ -745,6 +757,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCustomersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/delivery': {
       id: '/admin/delivery'
       path: '/delivery'
@@ -915,6 +934,7 @@ interface AdminRouteChildren {
   AdminChatRoute: typeof AdminChatRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCustomersRoute: typeof AdminCustomersRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminDeliveryRoute: typeof AdminDeliveryRoute
   AdminDiscountsRoute: typeof AdminDiscountsRoute
   AdminGalleryRoute: typeof AdminGalleryRoute
@@ -942,6 +962,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminChatRoute: AdminChatRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCustomersRoute: AdminCustomersRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminDeliveryRoute: AdminDeliveryRoute,
   AdminDiscountsRoute: AdminDiscountsRoute,
   AdminGalleryRoute: AdminGalleryRoute,

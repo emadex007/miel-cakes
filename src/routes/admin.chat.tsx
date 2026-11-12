@@ -2,8 +2,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { ding } from '~/components/admin/ding'
 import { Messages, PageTitle, useAction } from '~/components/admin/ui'
-import { ArrowLeftIcon, WhatsAppIcon } from '~/components/icons'
-import { chatDelete, chatList, chatReply, chatSaveContact, chatSetStatus, chatThread } from '~/lib/chat-client'
+import { ArrowLeftIcon, PaperclipIcon, WhatsAppIcon } from '~/components/icons'
+import { chatDelete, chatImageUrl, chatList, chatReply, chatReplyPicture, chatSaveContact, chatSetStatus, chatThread } from '~/lib/chat-client'
+import { ChatPicture } from '~/components/Chat'
 import type { ChatConversation, ChatMessage } from '~/lib/chat-types'
 import { toIntlPhone, whatsappLink } from '~/lib/format'
 
@@ -167,7 +168,20 @@ function Thread({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const lastId = useRef(0)
   const end = useRef<HTMLDivElement>(null)
+  const pic = useRef<HTMLInputElement>(null)
   const { busy, error, notice, run } = useAction()
+
+  async function sendPicture(file: File | undefined) {
+    if (!file) return
+    const caption = text.trim()
+    const ok = await run(() => chatReplyPicture({ id: conv.id, file, caption }))
+    if (pic.current) pic.current.value = ''
+    if (ok) {
+      setText('')
+      await load()
+      onChanged()
+    }
+  }
 
   async function load() {
     try {
@@ -268,6 +282,7 @@ function Thread({
           return (
             <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
               <div className={`max-w-[80%] whitespace-pre-line break-words rounded-2xl px-4 py-2.5 text-sm ${mine ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md bg-white ring-1 ring-[#e3e7f0]'}`}>
+                {m.image_key && <ChatPicture src={chatImageUrl(m.image_key)} />}
                 {m.body}
               </div>
               <span className="mt-1 px-1 text-[11px] text-[#98a2b3]">
@@ -281,6 +296,17 @@ function Thread({
 
       <form onSubmit={send} className="border-t border-[#e3e7f0] p-3">
         <div className="flex items-end gap-2">
+          <input ref={pic} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => sendPicture(e.target.files?.[0])} />
+          <button
+            type="button"
+            aria-label="Send a picture"
+            title="Send a picture"
+            disabled={busy}
+            onClick={() => pic.current?.click()}
+            className="flex h-11 w-10 shrink-0 items-center justify-center rounded-xl text-[#667085] ring-1 ring-[#d0d5e2] hover:text-brand hover:ring-brand disabled:opacity-40"
+          >
+            <PaperclipIcon />
+          </button>
           <textarea
             aria-label="Your reply"
             rows={2}

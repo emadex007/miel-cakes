@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { chatHello, chatPoll, chatSend, chatStart, chatUpdateContact } from '~/lib/chat-client'
-import type { ChatMessage } from '~/lib/chat-types'
+import { chatBot, chatHello, chatImageUrl, chatPoll, chatSend, chatSendPicture, chatStart, chatUpdateContact } from '~/lib/chat-client'
+import type { ChatBotTopic, ChatMessage } from '~/lib/chat-types'
 import { whatsappLink } from '~/lib/format'
 import type { SiteSettings } from '~/lib/site-fields'
-import { CloseIcon, WhatsAppIcon } from './icons'
+import { ArrowRightIcon, CloseIcon, PaperclipIcon, WhatsAppIcon } from './icons'
 
 const TOKEN_KEY = 'mc_chat_token'
 const TEASER_KEY = 'mc_chat_teaser_closed'
@@ -91,6 +91,9 @@ export function LiveChat({ s }: { s: SiteSettings }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [bot, setBot] = useState<{ intro: string; topics: ChatBotTopic[] } | null>(null)
+  const [botLog, setBotLog] = useState<ChatBotTopic[]>([])
+  const picInput = useRef<HTMLInputElement>(null)
   const lastId = useRef(0)
   const listEnd = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
@@ -170,6 +173,14 @@ export function LiveChat({ s }: { s: SiteSettings }) {
     return () => clearInterval(id)
   }, [token, open])
 
+  // Quick answers: fetched the first time the chat opens
+  useEffect(() => {
+    if (!open || bot) return
+    chatBot()
+      .then((r) => setBot(r.enabled ? { intro: r.intro, topics: r.topics } : { intro: '', topics: [] }))
+      .catch(() => setBot({ intro: '', topics: [] }))
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     setUnread(0)
@@ -181,7 +192,7 @@ export function LiveChat({ s }: { s: SiteSettings }) {
 
   useEffect(() => {
     listEnd.current?.scrollIntoView({ block: 'end' })
-  }, [messages.length, pending.length, open, hasContact])
+  }, [messages.length, pending.length, open, hasContact, botLog.length])
 
   async function send(body: string) {
     const message = body.trim()
@@ -215,6 +226,38 @@ export function LiveChat({ s }: { s: SiteSettings }) {
     }
   }
 
+  async function sendPicture(file: File | undefined) {
+    if (!file || busy) return
+    setError('')
+    setBusy(true)
+    const caption = text.trim()
+    setPending((p) => [...p, caption ? `Picture: ${caption}` : 'Picture'])
+    setText('')
+    try {
+      const r = await chatSendPicture({ token, file, caption, page: window.location.pathname })
+      if (r.token) {
+        writeToken(r.token)
+        lastId.current = 0
+        setMessages([])
+        setHasContact(!!(me?.phone || me?.email))
+        setToken(r.token)
+      } else {
+        await poll()
+      }
+    } catch (err) {
+      setPending([])
+      setText(caption)
+      setError(err instanceof Error ? err.message : 'Couldn’t send the picture. Please try again.')
+    } finally {
+      setBusy(false)
+      if (picInput.current) picInput.current.value = ''
+    }
+  }
+
+  function askBot(t: ChatBotTopic) {
+    setBotLog((l) => [...l, t])
+  }
+
   function closeTeaser() {
     setTeaser(false)
     try {
@@ -246,6 +289,21 @@ export function LiveChat({ s }: { s: SiteSettings }) {
       }}
       className={`flex items-end gap-2 ${compact ? 'p-3 pt-0' : 'border-t border-line bg-white p-3'}`}
     >
+      {!compact && (
+        <>
+          <input ref={picInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => sendPicture(e.target.files?.[0])} />
+          <button
+            type="button"
+            aria-label="Send a picture"
+            title="Send a picture of the cake you want"
+            disabled={busy}
+            onClick={() => picInput.current?.click()}
+            className="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-cocoa/70 transition hover:text-brand disabled:opacity-40"
+          >
+            <PaperclipIcon />
+          </button>
+        </>
+      )}
       <textarea
         ref={compact ? undefined : input}
         rows={1}
@@ -298,9 +356,49 @@ export function LiveChat({ s }: { s: SiteSettings }) {
             <Bubble mine={false} who={agent}>
               {s.chat_greeting}
             </Bubble>
+            {botLog.map((t, i) => (
+              <div key={`b${i}`} className="space-y-3">
+                <Bubble mine who="">
+                  {t.label}
+                </Bubble>
+                <Bubble mine={false} who={agent}>
+                  {t.answer}
+                  {t.link && (
+                    <a href={t.link.href} className="mt-2 flex items-center gap-1 font-semibold text-brand hover:underline">
+                      {t.link.label} <ArrowRightIcon className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </Bubble>
+              </div>
+            ))}
+            {!token && bot && bot.topics.length > 0 && (
+              <div className="space-y-2">
+                {botLog.length === 0 && bot.intro && <p className="px-1 text-xs text-muted">{bot.intro}</p>}
+                <div className="flex flex-wrap gap-2">
+                  {bot.topics.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => askBot(t)}
+                      className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-cocoa ring-1 ring-line transition hover:ring-brand"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => input.current?.focus()}
+                    className="rounded-full bg-cocoa px-3.5 py-2 text-xs font-semibold text-cream transition hover:bg-brand"
+                  >
+                    Talk to a person
+                  </button>
+                </div>
+              </div>
+            )}
             {!online && !token && s.chat_away_note && <p className="rounded-2xl bg-honey px-4 py-3 text-sm text-cocoa/85">{s.chat_away_note}</p>}
             {messages.map((m) => (
               <Bubble key={m.id} mine={m.sender === 'visitor'} who={m.sender === 'admin' ? m.admin_name || agent : ''} time={chatTime(m.created_at)}>
+                {m.image_key && <ChatPicture src={chatImageUrl(m.image_key, token)} />}
                 {m.body}
               </Bubble>
             ))}
@@ -348,7 +446,7 @@ export function LiveChat({ s }: { s: SiteSettings }) {
           <div className="overflow-hidden rounded-3xl bg-white shadow-[0_18px_44px_-12px_rgba(0,0,0,.35)] ring-1 ring-line">
             <button type="button" onClick={() => setOpen(true)} className="block w-full p-3 text-left">
               <span className="block whitespace-pre-line rounded-2xl rounded-bl-md bg-soft px-4 py-3 text-sm leading-relaxed text-cocoa">
-                {unread > 0 && lastReply ? lastReply.body : s.chat_greeting}
+                {unread > 0 && lastReply ? lastReply.body || (lastReply.image_key ? 'Sent you a picture' : '') : s.chat_greeting}
               </span>
               {unread > 0 && <span className="mt-1.5 block px-1 text-xs font-semibold text-brand">{unread} new message{unread === 1 ? '' : 's'} · tap to read</span>}
             </button>
@@ -437,5 +535,13 @@ function Bubble({ mine, who, time, children }: { mine: boolean; who: string; tim
         </span>
       )}
     </div>
+  )
+}
+
+export function ChatPicture({ src }: { src: string }) {
+  return (
+    <a href={src} target="_blank" rel="noopener" className="-mx-2 -mt-0.5 mb-1 block overflow-hidden rounded-xl">
+      <img src={src} alt="Picture sent in the chat" loading="lazy" className="max-h-64 w-full bg-black/5 object-cover" />
+    </a>
   )
 }

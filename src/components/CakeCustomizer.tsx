@@ -1,6 +1,6 @@
 import { Link, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useMemo, useRef, useState } from 'react'
-import { addToCart } from '~/fns/shop'
+import { addToCart, startGuest } from '~/fns/shop'
 import { CHOICE_GROUPS, TEXT_FIELDS, parseChoices, type CakeCustom } from '~/lib/custom'
 import { formatNaira } from '~/lib/format'
 import type { Product } from '~/lib/types'
@@ -47,7 +47,8 @@ export function CakeCustomizer({ p }: { p: Product }) {
     const item = { product_id: p.id, option_label: size.label, qty, note: message.trim(), custom }
     try {
       let ref_key = ''
-      if (photo && me) {
+      if (photo) {
+        if (!me) await startGuest() // no account needed: a guest cart holds the picture
         const body = new FormData()
         body.append('file', photo)
         const res = await fetch('/api/cart/reference', { method: 'POST', body })
@@ -140,26 +141,18 @@ export function CakeCustomizer({ p }: { p: Product }) {
       </div>
       <div className="mt-5">
         <span className={label}>Picture of the cake you have in mind (optional)</span>
-        {me ? (
-          <>
-            <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
-            <div className="flex flex-wrap items-center gap-3">
-              <button type="button" className="btn btn-ghost !py-2.5 text-sm text-cocoa" onClick={() => fileInput.current?.click()}>
-                {photo ? 'Change picture' : 'Choose a picture'}
-              </button>
-              {photo && (
-                <span className="text-sm">
-                  {photo.name}{' '}
-                  <button type="button" className="font-semibold text-muted hover:text-highlight" onClick={() => setPhoto(null)}>Remove</button>
-                </span>
-              )}
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-muted">
-            <Link to="/login" search={{ redirect: `/menu/${p.slug}` }} className="font-semibold text-brand hover:underline">Sign in</Link> to add a picture, or send it to us on WhatsApp after ordering.
-          </p>
-        )}
+        <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" className="btn btn-ghost !py-2.5 text-sm text-cocoa" onClick={() => fileInput.current?.click()}>
+            {photo ? 'Change picture' : 'Choose a picture'}
+          </button>
+          {photo && (
+            <span className="text-sm">
+              {photo.name}{' '}
+              <button type="button" className="font-semibold text-muted hover:text-highlight" onClick={() => setPhoto(null)}>Remove</button>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="mt-8 rounded-3xl bg-white p-5 ring-1 ring-line sm:p-6">

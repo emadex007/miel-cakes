@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { slugify } from '~/lib/format'
-import type { AdminUser, MediaItem, ProductOption } from '~/lib/types'
+import type { AdminUser, MediaItem, ProductMedia, ProductOption } from '~/lib/types'
 import { currentAdmin, endAdminSession, hashPassword, requireAdmin, requireOwner, startAdminSession, verifyPassword } from '~/server/auth'
 import { db, media, queryCategories, queryProducts, queryZones, uniqueSlug } from '~/server/db'
 import { loadSettings, saveSettings } from '~/server/settings'
@@ -209,6 +209,7 @@ export interface ProductInput {
   badge: string
   customizable: number | boolean
   sort: number
+  media?: ProductMedia[]
 }
 
 export const saveProduct = createServerFn({ method: 'POST' })
@@ -240,12 +241,18 @@ export const saveProduct = createServerFn({ method: 'POST' })
       str(data.badge, 20),
       bool(data.customizable),
       int(data.sort),
+      JSON.stringify(
+        (Array.isArray(data.media) ? data.media : [])
+          .map((m) => ({ url: str(m?.url, 1000), kind: m?.kind === 'video' ? 'video' : 'image' }))
+          .filter((m) => m.url.startsWith('/media/') || /^https:\/\//.test(m.url))
+          .slice(0, 20),
+      ),
     ]
     if (id) {
       await db()
         .prepare(
           `UPDATE products SET category_id=?, name=?, slug=?, description=?, image_url=?, options_json=?,
-           availability=?, notice_days=?, is_available=?, featured=?, badge=?, customizable=?, sort=?, updated_at=datetime('now') WHERE id=?`,
+           availability=?, notice_days=?, is_available=?, featured=?, badge=?, customizable=?, sort=?, media_json=?, updated_at=datetime('now') WHERE id=?`,
         )
         .bind(...values, id)
         .run()
@@ -254,7 +261,7 @@ export const saveProduct = createServerFn({ method: 'POST' })
     const r = await db()
       .prepare(
         `INSERT INTO products (category_id, name, slug, description, image_url, options_json, availability,
-         notice_days, is_available, featured, badge, customizable, sort) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         notice_days, is_available, featured, badge, customizable, sort, media_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       )
       .bind(...values)
       .run()

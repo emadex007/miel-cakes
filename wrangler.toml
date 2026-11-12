@@ -27,7 +27,11 @@ enabled = true
 
 # --- Secrets: set with `npx wrangler secret put <NAME>`, never commit them ---
 # PAYSTACK_SECRET_KEY   Paystack checkout and booking deposits   (Phase 3)
-# RESEND_API_KEY        order and booking emails                 (Phase 5)
+# RESEND_API_KEY        alerts, customer emails, festive emails  (see README: Turning on emails)
+
+# Every morning at 9:17 (Abuja time) send the next batch of festive emails
+[triggers]
+crons = ["17 8 * * *"]
 
 [vars]
 SITE_ENV = "production"

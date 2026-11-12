@@ -7,5 +7,8 @@ declare namespace Cloudflare {
     MEDIA: R2Bucket
     SITE_ENV: string
     PAYSTACK_SECRET_KEY?: string
+    /** Resend (resend.com) API key, for emails. Set with: npx wrangler secret put RESEND_API_KEY */
+    RESEND_API_KEY?: string
+    CANONICAL_HOST?: string
   }
 }

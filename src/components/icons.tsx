@@ -150,3 +150,48 @@ export const ImageIcon = ({ className = 'h-4 w-4' }: P) => (
     <path d="m21 16-5-5L5 20" />
   </svg>
 )
+
+export const CalendarIcon = ({ className = 'h-4 w-4' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </svg>
+)
+
+export const ChevronLeftIcon = ({ className = 'h-4 w-4' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m15 6-6 6 6 6" />
+  </svg>
+)
+
+export const ChevronRightIcon = ({ className = 'h-4 w-4' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+)
+
+export const PaperclipIcon = ({ className = 'h-5 w-5' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m20.5 11.5-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
+  </svg>
+)
+
+export const PlayIcon = ({ className = 'h-5 w-5' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+    <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+  </svg>
+)
+
+export const BellIcon = ({ className = 'h-5 w-5' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9Z" />
+    <path d="M10 20a2 2 0 0 0 4 0" />
+  </svg>
+)
+
+export const MailIcon = ({ className = 'h-5 w-5' }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="14" rx="2.5" />
+    <path d="m4 7 8 6 8-6" />
+  </svg>
+)

@@ -222,6 +222,14 @@ export const FIELD_GROUPS: FieldGroup[] = [
     description: 'Your order terms, refund rules and privacy policy. Edit them to match how you run your business. Start a heading with ## on its own line.',
     fields: [
       { key: 'terms_title', label: 'Title', type: 'text', default: 'Terms & refunds' },
+      {
+        key: 'checkout_terms',
+        label: 'Short terms shown at checkout',
+        type: 'lines',
+        help: 'One point per line. Customers see these in a box at checkout and must tick “I agree” before ordering.',
+        default:
+          'Your order is confirmed once payment is received.\nYou can change your order up to 48 hours before your date, if we have not started on it.\nCancel more than 7 days before your date and we refund you, minus costs already spent. Cancellations within 7 days are not refunded.\nHandmade cakes may differ slightly from photos and reference pictures.\nTell us about any allergies. Our kitchen uses eggs, milk, wheat, nuts and soy.\nCheck your order when it arrives. Send us a photo within 2 hours if anything is wrong.',
+      },
       { key: 'privacy_title', label: 'Privacy policy title', type: 'text', default: 'Privacy policy' },
       { key: 'privacy_body', label: 'Privacy policy', type: 'textarea', default: '## What we collect\nWhen you order, book an event, ask for a quote, chat with us or apply for a job, we collect the details you give us: your name, phone number, email, delivery address and the details of your order.\n\n## How we use it\nWe use your details only to make and deliver your order, contact you about it, send receipts, and answer your questions. We do not sell or share your details with anyone else, except a delivery rider who needs your address and phone number on the day.\n\n## Payments\nBank transfers go straight to our bank account. Card payments are handled securely by Paystack; we never see or store your card details.\n\n## Proof of payment and files\nScreenshots, receipts, pictures and CVs you upload are stored privately and only our team can see them.\n\n## Your account\nYour password is stored securely and we cannot see it. You can update your details on your account page at any time.\n\n## Keeping or deleting your details\nWe keep order records for our accounts. To have your details removed, message us and we will delete what we do not need to keep by law.\n\n## Contact\nQuestions about your privacy? Message us on WhatsApp or through the chat on our website.' },
       { key: 'terms_body', label: 'Terms', type: 'textarea', default: '## Orders\nYour order is confirmed once we have agreed the details and total with you, and received payment (or a deposit for event orders).\n\n## Payment\nWe accept bank transfer. Please send your proof of payment on WhatsApp. Work on your order starts once payment is confirmed. Card payment is coming soon.\n\n## Deposits for events\nWedding, event and large orders need a deposit to secure your date. The balance is due before delivery or pickup.\n\n## Changes and cancellations\nYou can change your order up to 48 hours before your date, as long as we have not started on it. If you cancel more than 7 days before your date, we refund your payment minus any costs already spent on your order. Cancellations within 7 days are not refunded, because ingredients and time are already committed.\n\n## Delivery and pickup\nPlease be available on the phone number you gave us on the day. Delivery times are estimates, as Abuja traffic can cause delays. Once a cake is handed over, please keep it cool, flat and out of the sun.\n\n## Damage\nCheck your order when you receive it. If something is wrong, send us a photo on WhatsApp within 2 hours and we will make it right.\n\n## Allergies\nOur kitchen uses eggs, milk, wheat, nuts and soy. Please tell us about any allergies before you order.\n\n## Designs\nHandmade cakes may differ slightly from photos or reference pictures. Colours can look different on screens.' },
@@ -242,6 +250,21 @@ export const FIELD_GROUPS: FieldGroup[] = [
       { key: 'daily_order_limit', label: 'Most orders you can take in one day', type: 'number', default: '0', help: 'When a date reaches this many orders, it closes at checkout automatically. 0 = no limit. You can still block dates by hand under Delivery areas.' },
       { key: 'paystack_enabled', label: 'Accept card payments with Paystack at checkout', type: 'toggle', default: '', help: 'Only switch this on after your Paystack secret key has been added to Cloudflare (your web developer does this once). Bank transfer is always available.' },
       { key: 'transfer_enabled', label: 'Accept bank transfer at checkout', type: 'toggle', default: '1', help: 'Customers transfer, then upload their proof of payment. You confirm it under Orders.' },
+    ],
+  },
+  {
+    id: 'notifications',
+    title: 'Alerts & emails',
+    description:
+      'How you hear about new orders, and the emails customers get. Phone alerts are switched on per phone under Alerts & emails in the menu. Emails need a free Resend account (see the setup steps on that page).',
+    fields: [
+      { key: 'alert_email', label: 'Send order alerts to this email', type: 'text', default: '', help: 'Leave empty to use the email in Contact details.' },
+      { key: 'email_alerts_enabled', label: 'Email me about new orders, bookings, quote requests and chats', type: 'toggle', default: '1' },
+      { key: 'push_enabled', label: 'Phone alerts', type: 'toggle', default: '1', help: 'A notification on every phone where you tapped “Turn on alerts on this phone”.' },
+      { key: 'customer_emails_enabled', label: 'Email customers about their orders and bookings', type: 'toggle', default: '1', help: 'Order received, payment confirmed, baking, ready, out for delivery, quote ready, and so on.' },
+      { key: 'email_from', label: 'Emails come from', type: 'text', default: 'orders@mielcakes.com', help: 'Must be on the domain you verified with Resend.' },
+      { key: 'email_daily_limit', label: 'Most emails per day', type: 'number', default: '100', help: 'Resend’s free plan allows 100 a day and 3,000 a month.' },
+      { key: 'campaign_daily_count', label: 'Festive emails sent per day', type: 'number', default: '80', help: 'Festive emails go out in daily batches of this size. The rest of the daily allowance is kept for order emails.' },
     ],
   },
   {
@@ -288,6 +311,8 @@ export const FIELD_GROUPS: FieldGroup[] = [
       { key: 'chat_title', label: 'Chat button label', type: 'text', default: 'Chat with us' },
       { key: 'chat_away_note', label: 'Message when you\u2019re away', type: 'textarea', default: 'We\u2019re away right now. Leave your message with your phone number and we\u2019ll get back to you as soon as we\u2019re back.' },
       { key: 'chat_show_whatsapp', label: 'Offer WhatsApp inside the chat too', type: 'toggle', default: '1' },
+      { key: 'chat_bot_enabled', label: 'Quick-answer buttons', type: 'toggle', default: '1', help: 'Shows tap-to-answer questions (prices, delivery fees, how to order, track my order, opening hours). Answers come from your menu, delivery areas and settings, so they stay up to date.' },
+      { key: 'chat_bot_intro', label: 'Text above the quick-answer buttons', type: 'text', default: 'Tap a question for a quick answer, or type your message to talk to us.' },
     ],
   },
   {

@@ -111,11 +111,11 @@ npm run db:migrate:remote
 npm run deploy
 ```
 
-It goes live at `https://miel-cakes.<your-subdomain>.workers.dev`.
+The live site is **https://mielcakes.com**. `www.mielcakes.com` and the old `miel-cakes.emadexcreations.workers.dev` address redirect there (see `routes`, `workers_dev` and `CANONICAL_HOST` in `wrangler.toml`).
 
 **Right after the first deploy, open `/admin/setup` on the live site and create the owner account.** The setup page only works until one account exists.
 
-For a custom domain later, go to Cloudflare dashboard → Workers → miel-cakes → Settings → Domains & Routes.
+Deploys must come from the Cloudflare account **Emadexcreations@gmail.com's Account** (`723bc041…`). If a deploy fails with "Authentication error", Wrangler is logged in to another account: run `npx wrangler logout`, delete `node_modules\.cache\wrangler`, then `npx wrangler login` and pick that account.
 
 ## Push to GitHub
 
@@ -162,6 +162,17 @@ Bank transfer works out of the box. To accept cards too:
 The same switch turns on card payment for event booking deposits and balances. The one webhook URL handles both orders and bookings.
 
 ## Updating an existing install
+
+Updates arrive through GitHub. To get one:
+
+```powershell
+git pull
+npm run db:migrate:remote    # only when the update adds a file in migrations/
+npm run deploy
+```
+
+If you change files yourself, commit and push them first (`git add -A`, `git commit -m "..."`, `git push`) so your changes and new updates don't clash.
+
 
 When an update adds a file in `migrations/`, apply it before running the new code:
 

@@ -1,7 +1,9 @@
-﻿import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start'
 import { notFound } from '@tanstack/react-router'
 import type { Client, GalleryItem, QuoteRequest, Receipt, ReceiptItem } from '~/lib/types'
-import { requireAdmin } from '~/server/auth'
+import { parseQuoteLines } from '~/lib/bookings'
+import { requireAdmin, requireOwner } from '~/server/auth'
+import { loadBooking } from '~/server/bookings'
 import { db } from '~/server/db'
 import { loadOrder } from '~/server/orders'
 
@@ -150,7 +152,7 @@ export const deleteQuote = createServerFn({ method: 'POST' })
 // Customers (clients)
 // =====================================================================
 export const listClients = createServerFn({ method: 'GET' }).handler(async () => {
-  await requireAdmin()
+  await requireOwner()
   const { results } = await db()
     .prepare(
       `SELECT c.*, COUNT(r.id) AS receipt_count, COALESCE(SUM(r.amount_paid), 0) AS total_spent
@@ -194,14 +196,14 @@ async function upsertClient(data: ClientInput) {
 export const saveClient = createServerFn({ method: 'POST' })
   .validator((d: ClientInput) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     return { id: await upsertClient(data) }
   })
 
 export const deleteClient = createServerFn({ method: 'POST' })
   .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
-    await requireAdmin()
+    await requireOwner()
     await db().batch([
       db().prepare('UPDATE receipts SET client_id = NULL WHERE client_id = ?').bind(id),
       db().prepare('DELETE FROM clients WHERE id = ?').bind(id),
@@ -249,15 +251,15 @@ function mapReceipt(row: ReceiptRow): Receipt {
 }
 
 export const listReceipts = createServerFn({ method: 'GET' }).handler(async () => {
-  await requireAdmin()
+  await requireOwner()
   const { results } = await db().prepare('SELECT * FROM receipts ORDER BY id DESC LIMIT 1000').all<ReceiptRow>()
   return results.map(mapReceipt)
 })
 
 export const getReceiptAdmin = createServerFn({ method: 'GET' })
-  .validator((d: { id: string; quoteId?: number; clientId?: number; orderId?: number }) => d)
+  .validator((d: { id: string; quoteId?: number; clientId?: number; orderId?: number; bookingId?: number }) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     const { results: clients } = await db()
       .prepare('SELECT id, name, phone, email, address, area FROM clients ORDER BY name COLLATE NOCASE')
       .all<Pick<Client, 'id' | 'name' | 'phone' | 'email' | 'address' | 'area'>>()
@@ -266,11 +268,13 @@ export const getReceiptAdmin = createServerFn({ method: 'GET' })
         ? await db().prepare('SELECT * FROM quote_requests WHERE id = ?').bind(int(data.quoteId)).first<QuoteRequest>()
         : null
       const order = data.orderId ? await loadOrder('WHERE o.id = ?', [int(data.orderId)]) : null
-      return { receipt: null, clients, quote, clientId: data.clientId ? int(data.clientId) : null, order }
+      const found = data.bookingId ? await loadBooking(db(), 'WHERE b.id = ?', [int(data.bookingId)]) : null
+      const booking = found ? { ...found.booking, lines: parseQuoteLines(found.booking.quote_items_json) } : null
+      return { receipt: null, clients, quote, clientId: data.clientId ? int(data.clientId) : null, order, booking }
     }
     const row = await db().prepare('SELECT * FROM receipts WHERE id = ?').bind(int(data.id)).first<ReceiptRow>()
     if (!row) throw new Error('That receipt no longer exists.')
-    return { receipt: mapReceipt(row), clients, quote: null, clientId: null, order: null }
+    return { receipt: mapReceipt(row), clients, quote: null, clientId: null, order: null, booking: null }
   })
 
 /** Public: the customer's receipt link. The token makes it unguessable. */
@@ -304,7 +308,7 @@ export interface ReceiptInput {
 export const saveReceipt = createServerFn({ method: 'POST' })
   .validator((d: ReceiptInput) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     const name = str(data.client_name, 100)
     if (!name) throw new Error('Enter the customer’s name.')
     const items = (Array.isArray(data.items) ? data.items : [])
@@ -384,7 +388,7 @@ export const saveReceipt = createServerFn({ method: 'POST' })
 export const deleteReceipt = createServerFn({ method: 'POST' })
   .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
-    await requireAdmin()
+    await requireOwner()
     await db().prepare('DELETE FROM receipts WHERE id = ?').bind(id).run()
     return { ok: true }
   })

@@ -1,6 +1,6 @@
-﻿import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start'
 import type { Job, JobApplication } from '~/lib/types'
-import { requireAdmin } from '~/server/auth'
+import { requireAdmin, requireOwner } from '~/server/auth'
 import { db, media } from '~/server/db'
 
 const str = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max)
@@ -17,7 +17,7 @@ export const getOpenJobs = createServerFn({ method: 'GET' }).handler(async () =>
 
 // ---------- jobs (admin) ----------
 export const listJobsAdmin = createServerFn({ method: 'GET' }).handler(async () => {
-  await requireAdmin()
+  await requireOwner()
   const [jobs, apps] = await Promise.all([
     db()
       .prepare(
@@ -46,7 +46,7 @@ export interface JobInput {
 export const saveJob = createServerFn({ method: 'POST' })
   .validator((d: JobInput) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     const title = str(data.title, 120)
     if (!title) throw new Error('Give the job a title.')
     const values = [
@@ -80,7 +80,7 @@ export const saveJob = createServerFn({ method: 'POST' })
 export const setJobOpen = createServerFn({ method: 'POST' })
   .validator((d: { id: number; open: boolean }) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     await db().prepare(`UPDATE jobs SET is_open = ?, updated_at = datetime('now') WHERE id = ?`).bind(data.open ? 1 : 0, int(data.id)).run()
     return { ok: true }
   })
@@ -88,7 +88,7 @@ export const setJobOpen = createServerFn({ method: 'POST' })
 export const deleteJob = createServerFn({ method: 'POST' })
   .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
-    await requireAdmin()
+    await requireOwner()
     // Keep applications; they keep the job title they applied for.
     await db().batch([
       db().prepare('UPDATE job_applications SET job_id = NULL WHERE job_id = ?').bind(id),
@@ -101,7 +101,7 @@ export const deleteJob = createServerFn({ method: 'POST' })
 export const updateApplication = createServerFn({ method: 'POST' })
   .validator((d: { id: number; status: JobApplication['status']; admin_note: string }) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     const allowed = ['new', 'shortlisted', 'interview', 'hired', 'not_selected']
     await db()
       .prepare('UPDATE job_applications SET status = ?, admin_note = ? WHERE id = ?')
@@ -113,7 +113,7 @@ export const updateApplication = createServerFn({ method: 'POST' })
 export const deleteApplication = createServerFn({ method: 'POST' })
   .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
-    await requireAdmin()
+    await requireOwner()
     const row = await db().prepare('SELECT cv_key FROM job_applications WHERE id = ?').bind(id).first<{ cv_key: string }>()
     if (row?.cv_key) await media().delete(row.cv_key)
     await db().prepare('DELETE FROM job_applications WHERE id = ?').bind(id).run()

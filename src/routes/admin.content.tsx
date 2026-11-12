@@ -15,7 +15,7 @@ function ContentPage() {
       <PageTitle title="Website content">
         Edit the words, photos and videos on the homepage and About page. Save each section when you&rsquo;re done.
       </PageTitle>
-      <SettingsEditor groupIds={['promo', 'hero', 'home', 'occasions', 'about', 'gallery', 'quote', 'faq', 'careers', 'policies', 'footer']} initial={settings} />
+      <SettingsEditor groupIds={['promo', 'hero', 'home', 'occasions', 'customizer', 'events', 'about', 'gallery', 'quote', 'faq', 'careers', 'policies', 'footer']} initial={settings} />
     </>
   )
 }

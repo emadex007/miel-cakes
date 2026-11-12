@@ -2,22 +2,25 @@ import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-r
 import { useState } from 'react'
 import { Field, Messages, PageTitle, useAction } from '~/components/admin/ui'
 import { PAYMENT_METHODS, ReceiptSheet } from '~/components/ReceiptSheet'
-import { WhatsAppIcon } from '~/components/icons'
+import { ArrowLeftIcon, CloseIcon, WhatsAppIcon } from '~/components/icons'
 import { deleteReceipt, getReceiptAdmin, saveReceipt, type ReceiptInput } from '~/fns/business'
+import { customOneLine } from '~/lib/custom'
 import { formatNaira, toIntlPhone, whatsappLink } from '~/lib/format'
 import type { Receipt } from '~/lib/types'
 
 const root = getRouteApi('__root__')
 
 export const Route = createFileRoute('/admin/receipts/$id')({
-  validateSearch: (search: Record<string, unknown>): { quote?: number; client?: number; order?: number; edit?: boolean } => ({
+  validateSearch: (search: Record<string, unknown>): { quote?: number; client?: number; order?: number; booking?: number; edit?: boolean } => ({
     ...(Number(search.order) > 0 ? { order: Number(search.order) } : {}),
+    ...(Number(search.booking) > 0 ? { booking: Number(search.booking) } : {}),
     ...(Number(search.quote) > 0 ? { quote: Number(search.quote) } : {}),
     ...(Number(search.client) > 0 ? { client: Number(search.client) } : {}),
     ...(search.edit === true || search.edit === 'true' ? { edit: true } : {}),
   }),
-  loaderDeps: ({ search }) => ({ quote: search.quote, client: search.client, order: search.order }),
-  loader: ({ params, deps }) => getReceiptAdmin({ data: { id: params.id, quoteId: deps.quote, clientId: deps.client, orderId: deps.order } }),
+  loaderDeps: ({ search }) => ({ quote: search.quote, client: search.client, order: search.order, booking: search.booking }),
+  loader: ({ params, deps }) =>
+    getReceiptAdmin({ data: { id: params.id, quoteId: deps.quote, clientId: deps.client, orderId: deps.order, bookingId: deps.booking } }),
   component: ReceiptPage,
 })
 
@@ -74,7 +77,7 @@ function ReceiptView({ r }: { r: Receipt }) {
   return (
     <>
       <div className="no-print">
-        <Link to="/admin/receipts" className="text-sm font-semibold text-[#667085] hover:text-cocoa">← All receipts</Link>
+        <Link to="/admin/receipts" className="text-sm font-semibold text-[#667085] hover:text-cocoa"><ArrowLeftIcon className="mr-1 inline h-4 w-4 align-[-3px]" />All receipts</Link>
         <div className="mt-3">
           <PageTitle title={`Receipt ${r.code}`}>Send it to {first} with a thank-you message, or print it.</PageTitle>
         </div>
@@ -126,7 +129,7 @@ function ReceiptView({ r }: { r: Receipt }) {
 // Create / edit
 // ------------------------------------------------------------------
 function ReceiptEditor() {
-  const { receipt, clients, quote, clientId, order: fromOrder } = Route.useLoaderData()
+  const { receipt, clients, quote, clientId, order: fromOrder, booking: fromBooking } = Route.useLoaderData()
   const router = useRouter()
   const { busy, error, run } = useAction()
   const todayIso = new Date().toISOString().slice(0, 10)
@@ -162,14 +165,39 @@ function ReceiptEditor() {
         client_phone: o.contact_phone,
         client_email: o.customer_email ?? '',
         client_address: o.fulfilment === 'delivery' ? `${o.address}${o.zone_name ? `, ${o.zone_name}` : ''}` : '',
-        items: fromOrder.items.map((i) => ({ description: `${i.name} (${i.option_label})${i.note ? `: "${i.note}"` : ''}`, qty: i.qty, price: i.unit_price })),
+        items: fromOrder.items.map((i) => ({
+          description: `${i.name} (${[i.option_label, customOneLine(i.custom_json)].filter(Boolean).join(' · ')})${i.note ? `: "${i.note}"` : ''}`,
+          qty: i.qty,
+          price: i.unit_price,
+        })),
         delivery_fee: o.delivery_fee,
-        discount: 0,
+        discount: o.discount ?? 0,
         amount_paid: o.payment_status === 'paid' ? o.total : 0,
         payment_method: o.payment_method === 'paystack' ? 'paystack' : 'transfer',
         fulfilment: o.fulfilment,
         event_date: o.needed_date,
         note: `Online order ${o.code}`,
+        issued_on: todayIso,
+      }
+    }
+    if (fromBooking) {
+      const b = fromBooking
+      const known = clients.find((x) => x.phone && x.phone.replace(/\D/g, '').slice(-10) === b.contact_phone.replace(/\D/g, '').slice(-10))
+      return {
+        client_id: known?.id ?? null,
+        save_client: !known,
+        client_name: b.customer_name ?? '',
+        client_phone: b.contact_phone,
+        client_email: b.customer_email ?? '',
+        client_address: b.fulfilment === 'delivery' ? `${b.address}${b.zone_name ? `, ${b.zone_name}` : ''}` : '',
+        items: b.lines.length ? b.lines : [{ description: b.event_type, qty: 1, price: Math.max(0, b.quote_amount - b.delivery_fee) }],
+        delivery_fee: b.delivery_fee,
+        discount: 0,
+        amount_paid: b.paid_amount,
+        payment_method: 'transfer',
+        fulfilment: b.fulfilment,
+        event_date: b.event_date,
+        note: `Event booking ${b.code} (${b.event_type}, ${b.guests} guests)`,
         issued_on: todayIso,
       }
     }
@@ -226,7 +254,7 @@ function ReceiptEditor() {
 
   return (
     <>
-      <Link to="/admin/receipts" className="text-sm font-semibold text-[#667085] hover:text-cocoa">← All receipts</Link>
+      <Link to="/admin/receipts" className="text-sm font-semibold text-[#667085] hover:text-cocoa"><ArrowLeftIcon className="mr-1 inline h-4 w-4 align-[-3px]" />All receipts</Link>
       <div className="mt-3">
         <PageTitle title={receipt ? `Edit receipt ${receipt.code}` : 'New receipt'}>
           {fromOrder
@@ -294,7 +322,7 @@ function ReceiptEditor() {
                   disabled={form.items.length === 1}
                   aria-label="Remove item"
                 >
-                  ×
+                  <CloseIcon className="h-4 w-4" />
                 </button>
               </div>
             ))}

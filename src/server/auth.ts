@@ -88,6 +88,13 @@ export async function requireAdmin() {
   return admin
 }
 
+/** Throws unless the owner is signed in (money, settings and HR pages). */
+export async function requireOwner() {
+  const admin = await requireAdmin()
+  if (admin.role !== 'owner') throw new Error('Only the owner can do this. Ask the owner to sign in.')
+  return admin
+}
+
 // ---------------------------------------------------------------------------
 // Customer sessions (online shop)
 // ---------------------------------------------------------------------------

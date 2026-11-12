@@ -6,8 +6,10 @@ import { getMenu } from '~/fns/public'
 const root = getRouteApi('__root__')
 
 export const Route = createFileRoute('/menu/')({
-  validateSearch: (search: Record<string, unknown>): { c?: string } =>
-    typeof search.c === 'string' && search.c ? { c: search.c } : {},
+  validateSearch: (search: Record<string, unknown>): { c?: string; q?: string } => ({
+    ...(typeof search.c === 'string' && search.c ? { c: search.c } : {}),
+    ...(typeof search.q === 'string' && search.q.trim() ? { q: search.q.trim().slice(0, 60) } : {}),
+  }),
   loader: () => getMenu(),
   head: () => ({ meta: [{ title: 'Menu · Miel Cakes' }] }),
   component: MenuPage,
@@ -16,9 +18,16 @@ export const Route = createFileRoute('/menu/')({
 function MenuPage() {
   const s = root.useLoaderData()
   const { categories, products } = Route.useLoaderData()
-  const { c } = Route.useSearch()
+  const { c, q } = Route.useSearch()
   const active = categories.find((cat) => cat.slug === c)
   const visibleCats = active ? [active] : categories.filter((cat) => products.some((p) => p.category_id === cat.id))
+  const words = (q ?? '').toLowerCase().split(/\s+/).filter(Boolean)
+  const results = words.length
+    ? products.filter((p) => {
+        const hay = `${p.name} ${p.description} ${p.category_name ?? ''} ${p.badge ?? ''} ${p.options.map((o) => o.label).join(' ')}`.toLowerCase()
+        return words.every((w) => hay.includes(w.replace(/s$/, '')))
+      })
+    : []
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-16">
@@ -48,7 +57,29 @@ function MenuPage() {
         </div>
       </nav>
 
-      {visibleCats.map((cat) => {
+      {q ? (
+        <section className="pt-12">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="font-display text-3xl">
+              {results.length ? `${results.length} result${results.length === 1 ? '' : 's'} for “${q}”` : `Nothing found for “${q}”`}
+            </h2>
+            <Link to="/menu" search={{}} className="font-semibold text-brand hover:underline">Clear search</Link>
+          </div>
+          {results.length ? (
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {results.map((p, n) => (
+                <Reveal key={p.id} delay={(n % 4) * 0.07}>
+                  <ProductCard p={p} />
+                </Reveal>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 max-w-xl text-muted">Try another word, like &ldquo;birthday&rdquo;, &ldquo;chops&rdquo; or &ldquo;cupcake&rdquo;, or ask us in the chat. We make custom orders too.</p>
+          )}
+        </section>
+      ) : null}
+
+      {!q && visibleCats.map((cat) => {
         const items = products.filter((p) => p.category_id === cat.id)
         return (
           <section key={cat.id} className="pt-12" id={cat.slug}>

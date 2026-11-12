@@ -1,4 +1,4 @@
-﻿import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start'
 import type { Review } from '~/lib/types'
 import { requireAdmin } from '~/server/auth'
 import { db } from '~/server/db'
@@ -42,7 +42,8 @@ export const saveReview = createServerFn({ method: 'POST' })
     const values = [name, str(data.occasion, 80), body, Math.min(5, Math.max(1, int(data.rating, 5))), str(data.photo_url, 1000), data.is_visible ? 1 : 0, int(data.sort)]
     if (data.id) {
       await db()
-        .prepare('UPDATE reviews SET name=?, occasion=?, body=?, rating=?, photo_url=?, is_visible=?, sort=? WHERE id=?')
+        // Any save (including switching it on or off) counts as looked at
+        .prepare('UPDATE reviews SET name=?, occasion=?, body=?, rating=?, photo_url=?, is_visible=?, sort=?, seen=1 WHERE id=?')
         .bind(...values, int(data.id))
         .run()
       return { id: int(data.id) }

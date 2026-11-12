@@ -8,11 +8,22 @@ Built by Emadex Creations on TanStack Start + Cloudflare Workers, D1 (database) 
 
 **Website**
 - Taller header with a navy contact bar (phone, WhatsApp, socials, a short message), plus Menu, Gallery, About, Contact, **Get a quote** and **Order now**
-- Homepage: looping video, animated headline with icing underline, rotating "Fresh in Abuja today" line, scrolling strip, categories, favourites, **occasions grouped by type** (Celebrations, Weddings & love, Family moments, Faith & festive, Work & events), recent work from the gallery, how-it-works steps, event banner and delivery areas
+- Homepage, in this order: (1) hero with a signature cake photo (or optional video), menu and WhatsApp buttons; (2) shop by category; (3) customer favourites with starting prices; (4) why choose Miel Cakes, with reasons, a short story and review rating; (5) ready-to-go and everyday treats (items available daily); (6) corporate and event catering with a short list of popular occasions; (7) gallery and customer reviews; (8) how to order and FAQs; (9) location with map, opening hours, contact and a final call to action. Every section is edited under Website content → Homepage sections
+- Header **search** and a **Menu dropdown** listing every category (also in the phone menu)
+- Product cards with labels (**Hot**, **New**, **Kids**…), **Quick view** (choose size and quantity in a pop-up) and **Buy now** (straight to checkout)
+- Homepage extras: "Cakes from ₦X" worked out from her cheapest cake, a free-gift perk line, extra rows by label (Popular cakes, New designs, Children's cakes), and a happy-deliveries counter that counts up
+- **Privacy policy** page, plus X (Twitter) and LinkedIn links
+- **Cake customiser** on cake pages: size, shape, flavour, layers, filling, icing, icing colour, decoration style and extras, topper, cake message, special instructions, occasion, quantity and a reference picture, with a live order summary (base cake + customisations = total). Choices and their extra prices are set in the dashboard; the server always recalculates the price. The details follow the cake into the cart, checkout, the order, the dashboard and the receipt
 - Menu with category filters; product pages with sizes, quantity, cake message, **Add to cart** (sprinkle burst) and Order on WhatsApp
 - **Online ordering**: customer sign-up/sign-in (needed to add to cart), cart, checkout with pickup or delivery (area fee added), date picker that respects notice days and fully booked dates, and payment by **Paystack** (card/bank/USSD) or **bank transfer with proof-of-payment upload**
 - **Order tracking**: customers see an animated progress bar (placed → payment confirmed → baking → ready → out for delivery → delivered) on their order page, or at **/track** with order number + phone, no sign-in needed
-- Customer account page: order history, edit details, change password
+- **Event bookings** (**/events**): customers describe their event (occasion, date, time, guests, what they want, a reference picture, venue area and address). The owner replies with an itemised quote and deposit; the customer pays the deposit (transfer with proof upload, or Paystack once on) to book the date, then the balance. They follow it all on their booking page with a progress bar and history
+- **Delivery time slots** at checkout (set them under Settings → Payment & delivery) and a **daily order limit**: a date closes automatically once it has that many orders
+- **Discount codes** at checkout; the server checks and recalculates every code
+- **Rate your order:** once an order is completed, the customer can leave stars and a review on their order page; it shows on the website after the owner switches it on under Reviews. The "Delivered/Collected" WhatsApp message includes the link
+- **Track by booking number too:** /track works for MC- orders and MB- event bookings with the phone number, no sign-in needed
+- **Google:** bakery details and product prices as structured data for search results, plus optional free Cloudflare Web Analytics (Settings → Sharing & Google)
+- Customer account page: event bookings, order history, edit details, change password
 - **Gallery** page: filter by occasion, tap a photo to enlarge
 - About page: story, photo, video, numbers, values and closing section, all editable, and empty boxes hide their section
 - **Careers** page: open jobs with details, and an application form (with optional CV upload). A general application works even when no job is open
@@ -20,15 +31,20 @@ Built by Emadex Creations on TanStack Start + Cloudflare Workers, D1 (database) 
 - **How to pay** everywhere: Paystack is marked as coming soon; pay by bank transfer, send proof on WhatsApp, and work starts once payment is confirmed
 - **Customer reviews** on the homepage (hidden until real reviews are added), **FAQs** section and page, **Terms & refunds** page
 - **Promo banner** at the top of every page, switched on and off from the dashboard
-- **Floating WhatsApp button** on every page
+- **Live chat** on every page: visitors leave their name (and phone or email) and chat with you right on the website. You reply from the dashboard. Shows "Online now" while the dashboard is open, and WhatsApp is offered as an option inside the chat. Switch it off to show the floating WhatsApp button instead
 - Link previews for WhatsApp, Facebook and X (image, title, description), plus `/sitemap.xml` and `/robots.txt` for Google
 - Taller footer: how-to-pay strip with bank details and "Send proof of payment", quick links, occasions, contact and hours
 - Blue, yellow and a touch of red, with a **button hover colour** you choose
 
 **Admin dashboard** at `/admin`
+- **Alerts:** red counts in the menu for new orders, event bookings, quote requests, job applications, reviews and chat messages, with a soft ding and a count in the browser tab (checked every 20 seconds)
+- **Staff permissions:** staff accounts handle orders, bookings, chat, quotes, the menu, gallery, reviews and photos. Only the owner can open receipts and money, customers, discount codes, careers, website content, delivery areas and settings (enforced on the server too)
+- **Discount codes:** % or ₦ off, minimum order, total number of uses, start and end dates, switch on/off, and how much each code has given away
+- **Live chat**: every conversation with unread counts (also shown in the menu), a sound and tab count when new messages arrive, reply, mark as done, save the person to Customers, follow up on WhatsApp
 - **Orders**: filter by what needs action, view proof of payment, confirm payment, move orders along (the customer's tracking updates), send the update on WhatsApp, reset a customer's password, create a receipt from the order, download for Excel
-- **Fully booked dates** (under Delivery areas): customers can't pick them at checkout
-- Overview: orders to handle, new quote requests, money received this month, customers, menu, and a getting-ready checklist
+- **Event bookings**: filter by what needs action, see the request and reference picture, send an itemised **quote with a deposit** (filled in from your usual %), check proof of payment and confirm it, record cash/POS/transfer payments (part payments are fine), book the date, mark completed, decline or cancel, message the customer on WhatsApp with the right wording for each stage, private notes, create a receipt from the booking, download for Excel
+- **Fully booked dates** (under Delivery areas): customers can't pick them at checkout or for event bookings
+- Overview: orders to handle, event bookings to handle, new quote requests, money received this month, customers, menu, and a getting-ready checklist
 - **Quote requests**: status (New, Contacted, Price sent, Confirmed, Declined), private notes, reply on WhatsApp, save as a customer, turn into a receipt, download for Excel
 - **Receipts**: create with items, delivery, discount and amount paid; send on **WhatsApp** or **email** with a thank-you message and a private link; **print or save as PDF**; monthly totals, what's still owed, download for Excel
 - **Reviews**: add real customer reviews with stars and an optional photo, show or hide each one
@@ -38,14 +54,10 @@ Built by Emadex Creations on TanStack Start + Cloudflare Workers, D1 (database) 
 - Settings & colours: main, hover, hover text, second colour, touch of red, dark and background, with a live preview. Also contact details, bank details, payment and delivery wording, and receipt wording
 - Staff accounts and password
 
-## Coming next
+## Ideas for later
 
-| Phase | What it adds |
-|---|---|
-| 2 | Customer sign-up and login, cart (login required to add to cart) |
-| 3 | Checkout with Paystack and bank transfer, pickup or delivery with area fee, admin order management |
-| 4 | Event bookings: date, guests and items; admin sends a quote; customer pays deposit via Paystack; blocked dates |
-| 5 | Order tracking page with animated progress, email and dashboard alerts, final polish |
+- Email alerts to the owner for new orders and bookings
+- Connect a custom domain (for example mielcakes.com.ng)
 
 ---
 
@@ -146,6 +158,8 @@ Bank transfer works out of the box. To accept cards too:
    For testing on your computer, create a file called `.dev.vars` in the project folder containing `PAYSTACK_SECRET_KEY=sk_test_...` (it's git-ignored).
 3. In Paystack, set the **Webhook URL** to `https://YOUR-SITE/api/webhooks/paystack`. This confirms payments even if a customer closes the page after paying.
 4. In the dashboard, go to **Settings & colours → Payment & delivery** and switch on **Accept card payments with Paystack**. Also update the "How to pay" text, which currently says card payment is coming soon.
+
+The same switch turns on card payment for event booking deposits and balances. The one webhook URL handles both orders and bookings.
 
 ## Updating an existing install
 

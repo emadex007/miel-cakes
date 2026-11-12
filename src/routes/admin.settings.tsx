@@ -13,7 +13,7 @@ function SettingsPage() {
   return (
     <>
       <PageTitle title="Settings & colours">Business name, logo, brand and button hover colours, contact details, payment and delivery information, and receipt wording.</PageTitle>
-      <SettingsEditor groupIds={['brand', 'contact', 'ordering', 'receipt', 'sharing']} initial={settings} />
+      <SettingsEditor groupIds={['brand', 'contact', 'ordering', 'chat', 'receipt', 'sharing']} initial={settings} />
     </>
   )
 }

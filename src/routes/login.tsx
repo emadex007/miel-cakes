@@ -38,7 +38,7 @@ function LoginPage() {
       await signIn({ data: { email, password } })
       const added = await addPendingItem()
       await refresh()
-      if (added) router.navigate({ to: '/cart' })
+      if (added && redirect !== '/checkout') router.navigate({ to: '/cart' }) // "Buy now" goes straight on to checkout
       else if (redirect) router.history.push(redirect)
       else router.navigate({ to: '/account' })
     } catch (err) {

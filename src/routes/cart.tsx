@@ -2,7 +2,10 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useShop } from '~/components/Shop'
 import { getCheckout, updateCartItem } from '~/fns/shop'
+import { CustomDetails } from '~/components/CakeCustomizer'
+import { describeCustom } from '~/lib/custom'
 import { formatNaira } from '~/lib/format'
+import { MinusIcon, PlusIcon } from '~/components/icons'
 
 export const Route = createFileRoute('/cart')({
   loader: () => getCheckout(),
@@ -69,15 +72,17 @@ function CartPage() {
                     <Link to="/menu/$slug" params={{ slug: l.slug }} className="font-display text-xl hover:text-brand">{l.name}</Link>
                     <p className="text-sm text-muted">{l.option_label}</p>
                     {l.note && <p className="mt-1 text-sm italic text-cocoa/75">&ldquo;{l.note}&rdquo;</p>}
+                    <CustomDetails rows={describeCustom(l.custom_json)} refUrl={l.ref_key ? `/api/my/ref/${l.id}` : undefined} />
+                    {l.extras > 0 && <p className="mt-1 text-xs text-muted">Includes {formatNaira(l.extras)} for customisations</p>}
                     {!l.is_available && <p className="mt-1 text-sm font-semibold text-highlight">Sold out. Please remove.</p>}
                   </div>
                   <p className="shrink-0 font-semibold tabular">{formatNaira(l.unit_price * l.qty)}</p>
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3 pt-3">
                   <div className="flex items-center rounded-full bg-cream ring-1 ring-line">
-                    <button type="button" className="h-9 w-9 text-lg" onClick={() => setQty(l.id, l.qty - 1)} disabled={busyId === l.id} aria-label={`One less ${l.name}`}>−</button>
+                    <button type="button" className="flex h-9 w-9 items-center justify-center" onClick={() => setQty(l.id, l.qty - 1)} disabled={busyId === l.id} aria-label={`One less ${l.name}`}><MinusIcon /></button>
                     <span className="w-8 text-center font-bold tabular">{l.qty}</span>
-                    <button type="button" className="h-9 w-9 text-lg" onClick={() => setQty(l.id, l.qty + 1)} disabled={busyId === l.id} aria-label={`One more ${l.name}`}>+</button>
+                    <button type="button" className="flex h-9 w-9 items-center justify-center" onClick={() => setQty(l.id, l.qty + 1)} disabled={busyId === l.id} aria-label={`One more ${l.name}`}><PlusIcon /></button>
                   </div>
                   <button type="button" className="text-sm text-muted hover:text-highlight" onClick={() => setQty(l.id, 0)} disabled={busyId === l.id}>
                     Remove

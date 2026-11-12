@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { PageTitle } from '~/components/admin/ui'
 import { getDashboard } from '~/fns/admin'
 import { formatNaira } from '~/lib/format'
+import { CheckIcon } from '~/components/icons'
 
 export const Route = createFileRoute('/admin/')({
   loader: () => getDashboard(),
@@ -11,13 +12,16 @@ export const Route = createFileRoute('/admin/')({
 function Overview() {
   const d = Route.useLoaderData()
   const { admin } = Route.useRouteContext()
-  const tiles = [
+  const allTiles = [
     { label: 'Orders to handle', value: String(d.ordersToAct), to: '/admin/orders' as const, note: d.ordersToAct ? 'Confirm, bake, deliver' : 'All done' },
+    { label: 'Event bookings to handle', value: String(d.bookingsToAct), to: '/admin/bookings' as const, note: d.bookingsToAct ? 'Quote or confirm payment' : 'All done' },
     { label: 'New quote requests', value: String(d.newQuotes), to: '/admin/quotes' as const, note: d.newQuotes ? 'Waiting for your reply' : 'All answered' },
-    { label: 'Received this month', value: formatNaira(d.monthPaid), to: '/admin/receipts' as const, note: `${d.monthReceipts} receipt${d.monthReceipts === 1 ? '' : 's'}` },
-    { label: 'Customers', value: String(d.clients), to: '/admin/customers' as const, note: 'In your records' },
-    { label: 'New job applications', value: String(d.newApplications), to: '/admin/careers' as const, note: d.newApplications ? 'Waiting for review' : 'All reviewed' },
+    { label: 'Received this month', value: formatNaira(d.monthPaid), to: '/admin/receipts' as const, note: `${d.monthReceipts} receipt${d.monthReceipts === 1 ? '' : 's'}`, owner: true },
+    { label: 'Customers', value: String(d.clients), to: '/admin/customers' as const, note: 'In your records', owner: true },
+    { label: 'New job applications', value: String(d.newApplications), to: '/admin/careers' as const, note: d.newApplications ? 'Waiting for review' : 'All reviewed', owner: true },
   ]
+  // Staff see the work tiles only; money, customers and careers stay with the owner
+  const tiles = allTiles.filter((t) => d.isOwner || !('owner' in t))
   const checklist = [
     { done: d.checklist.whatsapp, text: 'Add your WhatsApp number so customers can order', to: '/admin/settings' as const },
     { done: d.checklist.phone, text: 'Add your phone number', to: '/admin/settings' as const },
@@ -37,9 +41,9 @@ function Overview() {
         Everything customers see on the website is edited from here.
       </PageTitle>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        {tiles.map((t, i) => (
-          <Link key={t.label} to={t.to} className={`admin-card p-5 transition hover:border-brand ${i === tiles.length - 1 ? 'col-span-2 lg:col-span-1' : ''}`}>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {tiles.map((t) => (
+          <Link key={t.label} to={t.to} className="admin-card p-5 transition hover:border-brand">
             <p className="text-sm font-semibold text-[#667085]">{t.label}</p>
             <p className="mt-2 font-display text-3xl tabular text-cocoa sm:text-4xl">{t.value}</p>
             <p className="mt-1 text-sm text-[#667085]">{t.note}</p>
@@ -47,6 +51,7 @@ function Overview() {
         ))}
       </div>
 
+      {d.isOwner && (
       <section className="admin-card mt-8 p-6 sm:p-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold">Get the website ready</h2>
@@ -61,7 +66,7 @@ function Overview() {
                 }`}
                 aria-label={c.done ? 'Done' : 'To do'}
               >
-                {c.done ? '✓' : ''}
+                {c.done ? <CheckIcon className="h-3.5 w-3.5" /> : null}
               </span>
               <span className={`flex-1 ${c.done ? 'text-[#98a2b3] line-through' : ''}`}>{c.text}</span>
               {!c.done && (
@@ -73,14 +78,7 @@ function Overview() {
           ))}
         </ul>
       </section>
-
-      <section className="mt-8 rounded-2xl bg-[#eef1f7] p-6 text-sm leading-relaxed text-[#475467]">
-        <p className="font-bold text-cocoa">What&rsquo;s coming in the next updates</p>
-        <p className="mt-2">
-          Event bookings with deposits. Customers can already order online (bank transfer with proof upload, or Paystack once
-          switched on), track their orders, and ask for quotes. Big event orders go through quote requests for now.
-        </p>
-      </section>
+      )}
     </>
   )
 }

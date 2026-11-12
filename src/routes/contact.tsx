@@ -2,7 +2,7 @@ import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { PaymentInfo } from '~/components/PaymentInfo'
 import { Reveal } from '~/components/motion'
-import { WhatsAppIcon } from '~/components/icons'
+import { ArrowRightIcon, CheckIcon, WhatsAppIcon } from '~/components/icons'
 import { submitQuote, type QuoteInput } from '~/fns/business'
 import { getZones } from '~/fns/public'
 import { formatNaira, lines, whatsappLink } from '~/lib/format'
@@ -63,7 +63,7 @@ function ContactPage() {
                 <dd className="mt-1 whitespace-pre-line text-lg">{s.address}</dd>
                 {mapLink && (
                   <a href={mapLink} target="_blank" rel="noopener" className="mt-1 inline-block font-semibold text-brand hover:underline">
-                    Open in Google Maps →
+                    Open in Google Maps <ArrowRightIcon className="ml-1 inline h-4 w-4 align-[-3px]" />
                   </a>
                 )}
               </div>
@@ -321,7 +321,7 @@ function QuoteForm({ s, zones }: { s: SiteSettings; zones: DeliveryZone[] }) {
                 className={`cursor-pointer rounded-full px-4 py-2 text-sm font-semibold ring-1 transition ${on ? 'bg-brand text-white ring-brand' : 'bg-white ring-line hover:ring-brand'}`}
               >
                 <input type="checkbox" className="sr-only" checked={on} onChange={() => toggleItem(item)} />
-                {on ? '✓ ' : ''}
+                {on && <CheckIcon className="mr-1 inline h-4 w-4 align-[-3px]" />}
                 {item}
               </label>
             )

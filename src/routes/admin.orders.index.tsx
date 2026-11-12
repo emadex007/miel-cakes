@@ -42,8 +42,11 @@ function OrdersAdmin() {
         { label: 'Customer', value: (o) => o.customer_name ?? '' },
         { label: 'Phone', value: (o) => o.contact_phone },
         { label: 'Date needed', value: (o) => o.needed_date },
+        { label: 'Time', value: (o) => o.time_slot },
         { label: 'Pickup/delivery', value: (o) => (o.fulfilment === 'delivery' ? `Delivery (${o.zone_name ?? ''})` : 'Pickup') },
         { label: 'Items', value: (o) => o.item_count },
+        { label: 'Discount (NGN)', value: (o) => o.discount },
+        { label: 'Discount code', value: (o) => o.discount_code },
         { label: 'Total (NGN)', value: (o) => o.total },
         { label: 'Payment', value: (o) => `${o.payment_method} / ${o.payment_status}` },
         { label: 'Status', value: (o) => ORDER_STATUS[o.status].admin },
@@ -109,7 +112,10 @@ function OrdersAdmin() {
                     {o.customer_name}
                     <span className="block text-xs text-[#667085] tabular">{o.contact_phone}</span>
                   </td>
-                  <td className="px-4 py-3 font-semibold">{formatDate(o.needed_date)}</td>
+                  <td className="px-4 py-3 font-semibold">
+                    {formatDate(o.needed_date)}
+                    {o.time_slot && <span className="block text-xs font-normal text-[#667085]">{o.time_slot}</span>}
+                  </td>
                   <td className="px-4 py-3">{o.fulfilment === 'delivery' ? `Delivery · ${o.zone_name ?? ''}` : 'Pickup'}</td>
                   <td className="px-4 py-3 text-right tabular">
                     {formatNaira(o.total)}

@@ -2,10 +2,12 @@
 import { HeadContent, Outlet, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { getSiteSettings } from '~/fns/public'
+import { LiveChat } from '~/components/Chat'
 import { FloatingWhatsApp, PromoBanner } from '~/components/Extras'
 import { ShopProvider } from '~/components/Shop'
 import { SiteFooter, SiteHeader } from '~/components/SiteChrome'
 import { NotFound } from '~/components/NotFound'
+import { bakeryJsonLd, jsonLd } from '~/lib/seo'
 import appCss from '~/styles.css?url'
 
 export const Route = createRootRoute({
@@ -56,6 +58,14 @@ export const Route = createRootRoute({
             ]),
         { rel: 'manifest', href: '/site.webmanifest' },
       ],
+      scripts: [
+        // Bakery details for Google (name, address, phone, socials)
+        ...(loaderData ? [{ type: 'application/ld+json', children: jsonLd(bakeryJsonLd(loaderData)) }] : []),
+        // Cloudflare Web Analytics (free visitor statistics), when a token is set
+        ...(loaderData?.cf_analytics_token
+          ? [{ src: 'https://static.cloudflareinsights.com/beacon.min.js', defer: true, 'data-cf-beacon': JSON.stringify({ token: loaderData.cf_analytics_token }) }]
+          : []),
+      ],
     }
   },
   shellComponent: RootDocument,
@@ -101,7 +111,7 @@ function RootLayout() {
             <Outlet />
           </main>
           <SiteFooter s={s} />
-          <FloatingWhatsApp s={s} />
+          {s.chat_enabled === '1' ? <LiveChat s={s} /> : <FloatingWhatsApp s={s} />}
         </div>
         </ShopProvider>
       )}

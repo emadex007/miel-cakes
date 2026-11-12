@@ -3,8 +3,10 @@ import { useState } from 'react'
 import { Messages, PageTitle, useAction } from '~/components/admin/ui'
 import { OrderTracker } from '~/components/OrderTracker'
 import { formatDate } from '~/components/ReceiptSheet'
-import { WhatsAppIcon } from '~/components/icons'
+import { ArrowLeftIcon, WhatsAppIcon } from '~/components/icons'
 import { confirmPayment, getOrderAdmin, resetCustomerPassword, setOrderStatus } from '~/fns/orders-admin'
+import { CustomDetails } from '~/components/CakeCustomizer'
+import { describeCustom } from '~/lib/custom'
 import { formatNaira, toIntlPhone, whatsappLink } from '~/lib/format'
 import { ADMIN_NEXT_STATUSES, ORDER_STATUS, type OrderStatus } from '~/lib/orders'
 
@@ -24,6 +26,8 @@ const STATUS_MESSAGES: Partial<Record<OrderStatus, string>> = {
 }
 
 function OrderAdmin() {
+  const { admin } = Route.useRouteContext()
+  const isOwner = admin?.role === 'owner'
   const s = root.useLoaderData()
   const { order, items, events } = Route.useLoaderData()
   const router = useRouter()
@@ -34,10 +38,19 @@ function OrderAdmin() {
 
   const first = (order.customer_name ?? '').split(' ')[0]
   const trackLink = typeof window !== 'undefined' ? `${window.location.origin}/track?code=${order.code}` : ''
+  const reviewLink = typeof window !== 'undefined' ? `${window.location.origin}/orders/${order.code}#review` : ''
   const statusMsg = STATUS_MESSAGES[order.status]
+  const linkLine =
+    order.status === 'completed'
+      ? reviewLink
+        ? ` We'd love to hear what you thought: ${reviewLink}`
+        : ''
+      : trackLink
+        ? ` Track it here: ${trackLink}`
+        : ''
   const waStatus = whatsappLink(
     toIntlPhone(order.contact_phone),
-    `Hello ${first}, ${statusMsg ? `${statusMsg}` : `an update on your order ${order.code}`}${statusMsg ? ` (order ${order.code})` : ''}.${trackLink ? ` Track it here: ${trackLink}` : ''}\n\n${s.business_name}`,
+    `Hello ${first}, ${statusMsg ? `${statusMsg}` : `an update on your order ${order.code}`}${statusMsg ? ` (order ${order.code})` : ''}.${linkLine}\n\n${s.business_name}`,
   )
 
   async function move(status: OrderStatus) {
@@ -66,14 +79,16 @@ function OrderAdmin() {
   const unpaid = order.payment_status !== 'paid'
   return (
     <>
-      <Link to="/admin/orders" className="text-sm font-semibold text-[#667085] hover:text-cocoa">← All orders</Link>
+      <Link to="/admin/orders" className="text-sm font-semibold text-[#667085] hover:text-cocoa"><ArrowLeftIcon className="mr-1 inline h-4 w-4 align-[-3px]" />All orders</Link>
       <div className="mt-3">
         <PageTitle
           title={`Order ${order.code}`}
           actions={
-            <Link to="/admin/receipts/$id" params={{ id: 'new' }} search={{ order: order.id }} className="btn btn-ghost text-cocoa">
+            isOwner && (
+              <Link to="/admin/receipts/$id" params={{ id: 'new' }} search={{ order: order.id }} className="btn btn-ghost text-cocoa">
               Create receipt
             </Link>
+            )
           }
         >
           Placed {formatDate(order.created_at)} by {order.customer_name}.
@@ -171,7 +186,10 @@ function OrderAdmin() {
 
           <section className="admin-card space-y-3 p-5 text-sm">
             <h2 className="text-lg font-bold">{order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup'}</h2>
-            <p className="text-base font-semibold">{formatDate(order.needed_date)}</p>
+            <p className="text-base font-semibold">
+              {formatDate(order.needed_date)}
+              {order.time_slot && <span className="block text-sm font-normal text-[#667085]">{order.time_slot}</span>}
+            </p>
             {order.fulfilment === 'delivery' && (
               <p>
                 {order.address}
@@ -190,6 +208,7 @@ function OrderAdmin() {
                     <strong>{i.qty} ×</strong> {i.name}
                     <span className="block text-[#667085]">{i.option_label}</span>
                     {i.note && <span className="block italic">&ldquo;{i.note}&rdquo;</span>}
+                    <CustomDetails dark rows={describeCustom(i.custom_json)} refUrl={i.ref_key ? `/api/admin/order-item-ref/${i.id}` : undefined} />
                   </span>
                   <span className="tabular">{formatNaira(i.qty * i.unit_price)}</span>
                 </li>
@@ -198,6 +217,7 @@ function OrderAdmin() {
             <div className="space-y-1 border-t border-[#eceff5] pt-3 tabular">
               <div className="flex justify-between"><span className="text-[#667085]">Items</span><span>{formatNaira(order.subtotal)}</span></div>
               {order.delivery_fee > 0 && <div className="flex justify-between"><span className="text-[#667085]">Delivery</span><span>{formatNaira(order.delivery_fee)}</span></div>}
+              {order.discount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount ({order.discount_code})</span><span>−{formatNaira(order.discount)}</span></div>}
               <div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatNaira(order.total)}</span></div>
               <p className={`text-right font-semibold ${unpaid ? 'text-amber-700' : 'text-emerald-700'}`}>
                 {unpaid ? 'Not paid yet' : `Paid${order.paid_at ? ` · ${formatDate(order.paid_at)}` : ''}`}

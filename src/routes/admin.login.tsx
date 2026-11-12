@@ -2,6 +2,7 @@ import { Link, createFileRoute, redirect, useRouter } from '@tanstack/react-rout
 import { useState } from 'react'
 import { Field, Messages, useAction } from '~/components/admin/ui'
 import { adminLogin, hasAnyAdmin } from '~/fns/admin'
+import { ArrowLeftIcon } from '~/components/icons'
 
 export const Route = createFileRoute('/admin/login')({
   beforeLoad: ({ context }) => {
@@ -49,7 +50,7 @@ function LoginPage() {
         </button>
       </form>
       <p className="mt-6 text-center text-sm">
-        <a href="/" className="font-semibold text-[#667085] hover:text-cocoa">← Back to website</a>
+        <a href="/" className="font-semibold text-[#667085] hover:text-cocoa"><ArrowLeftIcon className="mr-1 inline h-4 w-4 align-[-3px]" />Back to website</a>
       </p>
     </div>
   )

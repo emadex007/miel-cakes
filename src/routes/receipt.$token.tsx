@@ -1,6 +1,7 @@
 import { Link, createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { ReceiptSheet } from '~/components/ReceiptSheet'
 import { getReceiptByToken } from '~/fns/business'
+import { ArrowLeftIcon } from '~/components/icons'
 
 const root = getRouteApi('__root__')
 
@@ -22,7 +23,7 @@ function ReceiptPage() {
   return (
     <div className="min-h-screen bg-soft px-4 py-10 sm:py-16">
       <div className="no-print mx-auto mb-6 flex max-w-2xl flex-wrap items-center justify-between gap-3">
-        <Link to="/" className="font-semibold text-cocoa hover:text-brand">← {s.business_name}</Link>
+        <Link to="/" className="font-semibold text-cocoa hover:text-brand"><ArrowLeftIcon className="mr-1 inline h-4 w-4 align-[-3px]" />{s.business_name}</Link>
         <button type="button" onClick={() => window.print()} className="btn btn-primary">
           Print or save as PDF
         </button>

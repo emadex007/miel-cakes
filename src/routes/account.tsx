@@ -1,12 +1,17 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useShop } from '~/components/Shop'
+import { myBookings } from '~/fns/bookings'
 import { myOrders, signOut, updateMyDetails } from '~/fns/shop'
+import { BOOKING_STATUS } from '~/lib/bookings'
 import { formatNaira } from '~/lib/format'
 import { ORDER_STATUS } from '~/lib/orders'
 
 export const Route = createFileRoute('/account')({
-  loader: () => myOrders(),
+  loader: async () => {
+    const [orders, bookings] = await Promise.all([myOrders(), myBookings()])
+    return orders ? { ...orders, bookings } : null
+  },
   head: () => ({ meta: [{ title: 'Your account · Miel Cakes' }, { name: 'robots', content: 'noindex' }] }),
   component: AccountPage,
 })
@@ -29,7 +34,7 @@ function AccountPage() {
     )
   }
 
-  const { me, orders } = data
+  const { me, orders, bookings } = data
   async function logout() {
     await signOut()
     await refresh()
@@ -48,11 +53,33 @@ function AccountPage() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <section>
+          {bookings.length > 0 && (
+            <div className="mb-10">
+              <h2 className="font-display text-2xl">Your event bookings</h2>
+              <ul className="mt-4 space-y-3">
+                {bookings.map((b) => (
+                  <li key={b.id}>
+                    <Link to="/bookings/$code" params={{ code: b.code }} className="flex flex-wrap items-center gap-3 rounded-3xl bg-white p-5 ring-1 ring-line transition hover:ring-brand">
+                      <span className="font-display text-xl">{b.code}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${BOOKING_STATUS[b.status].className}`}>{BOOKING_STATUS[b.status].label}</span>
+                      <span className="text-sm text-muted">
+                        {b.event_type} · {new Date(`${b.event_date}T12:00:00`).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      <span className="ml-auto font-semibold tabular">{b.quote_amount ? formatNaira(b.quote_amount) : 'Quote coming'}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <h2 className="font-display text-2xl">Your orders</h2>
           {orders.length === 0 ? (
             <div className="mt-4 rounded-3xl bg-white p-8 text-center ring-1 ring-line">
               <p className="text-muted">No orders yet.</p>
-              <Link to="/menu" className="btn btn-primary mt-5">See the menu</Link>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <Link to="/menu" className="btn btn-primary">See the menu</Link>
+                <Link to="/events" className="btn btn-ghost text-cocoa">Book an event</Link>
+              </div>
             </div>
           ) : (
             <ul className="mt-4 space-y-3">

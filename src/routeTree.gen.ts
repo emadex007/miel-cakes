@@ -17,18 +17,22 @@ import { Route as CareersRouteImport } from './routes/careers'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrackRouteImport } from './routes/track'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCareersRouteImport } from './routes/admin.careers'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
+import { Route as AdminChatRouteImport } from './routes/admin.chat'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
 import { Route as AdminDeliveryRouteImport } from './routes/admin.delivery'
+import { Route as AdminDiscountsRouteImport } from './routes/admin.discounts'
 import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminMediaRouteImport } from './routes/admin.media'
@@ -37,10 +41,13 @@ import { Route as AdminReviewsRouteImport } from './routes/admin.reviews'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminStaffRouteImport } from './routes/admin.staff'
+import { Route as BookingsCodeRouteImport } from './routes/bookings.$code'
 import { Route as MenuIndexRouteImport } from './routes/menu.index'
 import { Route as MenuSlugRouteImport } from './routes/menu.$slug'
 import { Route as OrdersCodeRouteImport } from './routes/orders.$code'
 import { Route as ReceiptTokenRouteImport } from './routes/receipt.$token'
+import { Route as AdminBookingsIndexRouteImport } from './routes/admin.bookings.index'
+import { Route as AdminBookingsIdRouteImport } from './routes/admin.bookings.$id'
 import { Route as AdminMenuIndexRouteImport } from './routes/admin.menu.index'
 import { Route as AdminMenuIdRouteImport } from './routes/admin.menu.$id'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin.orders.index'
@@ -88,6 +95,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
@@ -101,6 +113,11 @@ const GalleryRoute = GalleryRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -133,6 +150,11 @@ const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   path: '/categories',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminChatRoute = AdminChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminContentRoute = AdminContentRouteImport.update({
   id: '/content',
   path: '/content',
@@ -146,6 +168,11 @@ const AdminCustomersRoute = AdminCustomersRouteImport.update({
 const AdminDeliveryRoute = AdminDeliveryRouteImport.update({
   id: '/delivery',
   path: '/delivery',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDiscountsRoute = AdminDiscountsRouteImport.update({
+  id: '/discounts',
+  path: '/discounts',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminGalleryRoute = AdminGalleryRouteImport.update({
@@ -188,6 +215,11 @@ const AdminStaffRoute = AdminStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => AdminRoute,
 } as any)
+const BookingsCodeRoute = BookingsCodeRouteImport.update({
+  id: '/bookings/$code',
+  path: '/bookings/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MenuIndexRoute = MenuIndexRouteImport.update({
   id: '/menu/',
   path: '/menu/',
@@ -207,6 +239,16 @@ const ReceiptTokenRoute = ReceiptTokenRouteImport.update({
   id: '/receipt/$token',
   path: '/receipt/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBookingsIndexRoute = AdminBookingsIndexRouteImport.update({
+  id: '/bookings/',
+  path: '/bookings/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBookingsIdRoute = AdminBookingsIdRouteImport.update({
+  id: '/bookings/$id',
+  path: '/bookings/$id',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminMenuIndexRoute = AdminMenuIndexRouteImport.update({
   id: '/menu/',
@@ -248,17 +290,21 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/events': typeof EventsRoute
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/careers': typeof AdminCareersRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/delivery': typeof AdminDeliveryRoute
+  '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/gallery': typeof AdminGalleryRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/media': typeof AdminMediaRoute
@@ -267,14 +313,17 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/staff': typeof AdminStaffRoute
+  '/bookings/$code': typeof BookingsCodeRoute
   '/menu/$slug': typeof MenuSlugRoute
   '/orders/$code': typeof OrdersCodeRoute
   '/receipt/$token': typeof ReceiptTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/menu/': typeof MenuIndexRoute
+  '/admin/bookings/$id': typeof AdminBookingsIdRoute
   '/admin/menu/$id': typeof AdminMenuIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/admin/receipts/$id': typeof AdminReceiptsIdRoute
+  '/admin/bookings/': typeof AdminBookingsIndexRoute
   '/admin/menu/': typeof AdminMenuIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/receipts/': typeof AdminReceiptsIndexRoute
@@ -287,17 +336,21 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/events': typeof EventsRoute
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/careers': typeof AdminCareersRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/delivery': typeof AdminDeliveryRoute
+  '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/gallery': typeof AdminGalleryRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/media': typeof AdminMediaRoute
@@ -306,14 +359,17 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/staff': typeof AdminStaffRoute
+  '/bookings/$code': typeof BookingsCodeRoute
   '/menu/$slug': typeof MenuSlugRoute
   '/orders/$code': typeof OrdersCodeRoute
   '/receipt/$token': typeof ReceiptTokenRoute
   '/admin': typeof AdminIndexRoute
   '/menu': typeof MenuIndexRoute
+  '/admin/bookings/$id': typeof AdminBookingsIdRoute
   '/admin/menu/$id': typeof AdminMenuIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/admin/receipts/$id': typeof AdminReceiptsIdRoute
+  '/admin/bookings': typeof AdminBookingsIndexRoute
   '/admin/menu': typeof AdminMenuIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/receipts': typeof AdminReceiptsIndexRoute
@@ -328,17 +384,21 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
+  '/events': typeof EventsRoute
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/careers': typeof AdminCareersRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/delivery': typeof AdminDeliveryRoute
+  '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/gallery': typeof AdminGalleryRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/media': typeof AdminMediaRoute
@@ -347,14 +407,17 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/staff': typeof AdminStaffRoute
+  '/bookings/$code': typeof BookingsCodeRoute
   '/menu/$slug': typeof MenuSlugRoute
   '/orders/$code': typeof OrdersCodeRoute
   '/receipt/$token': typeof ReceiptTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/menu/': typeof MenuIndexRoute
+  '/admin/bookings/$id': typeof AdminBookingsIdRoute
   '/admin/menu/$id': typeof AdminMenuIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/admin/receipts/$id': typeof AdminReceiptsIdRoute
+  '/admin/bookings/': typeof AdminBookingsIndexRoute
   '/admin/menu/': typeof AdminMenuIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/receipts/': typeof AdminReceiptsIndexRoute
@@ -370,17 +433,21 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/contact'
+    | '/events'
     | '/faq'
     | '/gallery'
     | '/login'
+    | '/privacy'
     | '/signup'
     | '/terms'
     | '/track'
     | '/admin/careers'
     | '/admin/categories'
+    | '/admin/chat'
     | '/admin/content'
     | '/admin/customers'
     | '/admin/delivery'
+    | '/admin/discounts'
     | '/admin/gallery'
     | '/admin/login'
     | '/admin/media'
@@ -389,14 +456,17 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/staff'
+    | '/bookings/$code'
     | '/menu/$slug'
     | '/orders/$code'
     | '/receipt/$token'
     | '/admin/'
     | '/menu/'
+    | '/admin/bookings/$id'
     | '/admin/menu/$id'
     | '/admin/orders/$id'
     | '/admin/receipts/$id'
+    | '/admin/bookings/'
     | '/admin/menu/'
     | '/admin/orders/'
     | '/admin/receipts/'
@@ -409,17 +479,21 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/contact'
+    | '/events'
     | '/faq'
     | '/gallery'
     | '/login'
+    | '/privacy'
     | '/signup'
     | '/terms'
     | '/track'
     | '/admin/careers'
     | '/admin/categories'
+    | '/admin/chat'
     | '/admin/content'
     | '/admin/customers'
     | '/admin/delivery'
+    | '/admin/discounts'
     | '/admin/gallery'
     | '/admin/login'
     | '/admin/media'
@@ -428,14 +502,17 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/staff'
+    | '/bookings/$code'
     | '/menu/$slug'
     | '/orders/$code'
     | '/receipt/$token'
     | '/admin'
     | '/menu'
+    | '/admin/bookings/$id'
     | '/admin/menu/$id'
     | '/admin/orders/$id'
     | '/admin/receipts/$id'
+    | '/admin/bookings'
     | '/admin/menu'
     | '/admin/orders'
     | '/admin/receipts'
@@ -449,17 +526,21 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/contact'
+    | '/events'
     | '/faq'
     | '/gallery'
     | '/login'
+    | '/privacy'
     | '/signup'
     | '/terms'
     | '/track'
     | '/admin/careers'
     | '/admin/categories'
+    | '/admin/chat'
     | '/admin/content'
     | '/admin/customers'
     | '/admin/delivery'
+    | '/admin/discounts'
     | '/admin/gallery'
     | '/admin/login'
     | '/admin/media'
@@ -468,14 +549,17 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/staff'
+    | '/bookings/$code'
     | '/menu/$slug'
     | '/orders/$code'
     | '/receipt/$token'
     | '/admin/'
     | '/menu/'
+    | '/admin/bookings/$id'
     | '/admin/menu/$id'
     | '/admin/orders/$id'
     | '/admin/receipts/$id'
+    | '/admin/bookings/'
     | '/admin/menu/'
     | '/admin/orders/'
     | '/admin/receipts/'
@@ -490,12 +574,15 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
+  EventsRoute: typeof EventsRoute
   FaqRoute: typeof FaqRoute
   GalleryRoute: typeof GalleryRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
+  BookingsCodeRoute: typeof BookingsCodeRoute
   MenuSlugRoute: typeof MenuSlugRoute
   OrdersCodeRoute: typeof OrdersCodeRoute
   ReceiptTokenRoute: typeof ReceiptTokenRoute
@@ -560,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/faq': {
       id: '/faq'
       path: '/faq'
@@ -579,6 +673,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -623,6 +724,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCategoriesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/chat': {
+      id: '/admin/chat'
+      path: '/chat'
+      fullPath: '/admin/chat'
+      preLoaderRoute: typeof AdminChatRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/content': {
       id: '/admin/content'
       path: '/content'
@@ -642,6 +750,13 @@ declare module '@tanstack/react-router' {
       path: '/delivery'
       fullPath: '/admin/delivery'
       preLoaderRoute: typeof AdminDeliveryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/discounts': {
+      id: '/admin/discounts'
+      path: '/discounts'
+      fullPath: '/admin/discounts'
+      preLoaderRoute: typeof AdminDiscountsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/gallery': {
@@ -700,6 +815,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStaffRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/bookings/$code': {
+      id: '/bookings/$code'
+      path: '/bookings/$code'
+      fullPath: '/bookings/$code'
+      preLoaderRoute: typeof BookingsCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/menu/': {
       id: '/menu/'
       path: '/menu'
@@ -727,6 +849,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/receipt/$token'
       preLoaderRoute: typeof ReceiptTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/bookings/': {
+      id: '/admin/bookings/'
+      path: '/bookings'
+      fullPath: '/admin/bookings/'
+      preLoaderRoute: typeof AdminBookingsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/bookings/$id': {
+      id: '/admin/bookings/$id'
+      path: '/bookings/$id'
+      fullPath: '/admin/bookings/$id'
+      preLoaderRoute: typeof AdminBookingsIdRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/menu/': {
       id: '/admin/menu/'
@@ -776,9 +912,11 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminCareersRoute: typeof AdminCareersRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
+  AdminChatRoute: typeof AdminChatRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCustomersRoute: typeof AdminCustomersRoute
   AdminDeliveryRoute: typeof AdminDeliveryRoute
+  AdminDiscountsRoute: typeof AdminDiscountsRoute
   AdminGalleryRoute: typeof AdminGalleryRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMediaRoute: typeof AdminMediaRoute
@@ -788,9 +926,11 @@ interface AdminRouteChildren {
   AdminSetupRoute: typeof AdminSetupRoute
   AdminStaffRoute: typeof AdminStaffRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminBookingsIdRoute: typeof AdminBookingsIdRoute
   AdminMenuIdRoute: typeof AdminMenuIdRoute
   AdminOrdersIdRoute: typeof AdminOrdersIdRoute
   AdminReceiptsIdRoute: typeof AdminReceiptsIdRoute
+  AdminBookingsIndexRoute: typeof AdminBookingsIndexRoute
   AdminMenuIndexRoute: typeof AdminMenuIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   AdminReceiptsIndexRoute: typeof AdminReceiptsIndexRoute
@@ -799,9 +939,11 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCareersRoute: AdminCareersRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminChatRoute: AdminChatRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCustomersRoute: AdminCustomersRoute,
   AdminDeliveryRoute: AdminDeliveryRoute,
+  AdminDiscountsRoute: AdminDiscountsRoute,
   AdminGalleryRoute: AdminGalleryRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMediaRoute: AdminMediaRoute,
@@ -811,9 +953,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSetupRoute: AdminSetupRoute,
   AdminStaffRoute: AdminStaffRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminBookingsIdRoute: AdminBookingsIdRoute,
   AdminMenuIdRoute: AdminMenuIdRoute,
   AdminOrdersIdRoute: AdminOrdersIdRoute,
   AdminReceiptsIdRoute: AdminReceiptsIdRoute,
+  AdminBookingsIndexRoute: AdminBookingsIndexRoute,
   AdminMenuIndexRoute: AdminMenuIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminReceiptsIndexRoute: AdminReceiptsIndexRoute,
@@ -830,12 +974,15 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
+  EventsRoute: EventsRoute,
   FaqRoute: FaqRoute,
   GalleryRoute: GalleryRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
+  BookingsCodeRoute: BookingsCodeRoute,
   MenuSlugRoute: MenuSlugRoute,
   OrdersCodeRoute: OrdersCodeRoute,
   ReceiptTokenRoute: ReceiptTokenRoute,

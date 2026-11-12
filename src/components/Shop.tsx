@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { addToCart, getMe } from '~/fns/shop'
+import type { CakeCustom } from '~/lib/custom'
 
 type Me = Awaited<ReturnType<typeof getMe>>
 
@@ -38,6 +39,7 @@ export interface PendingItem {
   option_label: string
   qty: number
   note: string
+  custom?: CakeCustom | null
 }
 export function savePendingItem(item: PendingItem) {
   try {

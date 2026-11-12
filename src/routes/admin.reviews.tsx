@@ -4,6 +4,7 @@ import { Field, MediaField, Messages, PageTitle, Toggle, useAction } from '~/com
 import { Stars } from '~/components/Extras'
 import { deleteReview, listReviewsAdmin, saveReview, type ReviewInput } from '~/fns/reviews'
 import type { Review } from '~/lib/types'
+import { StarIcon } from '~/components/icons'
 
 export const Route = createFileRoute('/admin/reviews')({
   loader: () => listReviewsAdmin(),
@@ -49,8 +50,9 @@ function ReviewsAdmin() {
           </button>
         }
       >
-        Kind words from real customers, shown on the homepage. Copy them from WhatsApp, Instagram or Google, and ask the customer
-        first. A first name is enough.
+        Kind words from real customers, shown on the homepage. Customers can rate their order once it&rsquo;s completed; those
+        reviews wait here until you switch them on. You can also add reviews from WhatsApp, Instagram or Google (ask the customer first).
+        A first name is enough.
       </PageTitle>
       <div className="mb-4">
         <Messages error={error} notice={notice} />
@@ -81,7 +83,7 @@ function ReviewsAdmin() {
                     aria-label={`${n} star${n > 1 ? 's' : ''}`}
                     aria-pressed={n === editing.rating}
                   >
-                    ★
+                    <StarIcon filled className="mx-auto h-5 w-5" />
                   </button>
                 ))}
               </div>
@@ -110,11 +112,16 @@ function ReviewsAdmin() {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {reviews.map((r) => (
-            <li key={r.id} className={`admin-card space-y-3 p-5 ${r.is_visible ? '' : 'opacity-60'}`}>
+            <li key={r.id} className={`admin-card space-y-3 p-5 ${r.is_visible || !r.seen ? '' : 'opacity-60'}`}>
               <div className="flex items-center justify-between gap-3">
                 <Stars rating={r.rating} />
                 <Toggle id={`rv-vis-${r.id}`} checked={!!r.is_visible} onChange={(v) => toggle(r, v)} label="Shown" />
               </div>
+              {r.source === 'customer' && (
+                <p className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${!r.seen ? 'bg-amber-100 text-amber-900' : 'bg-[#eef1f7] text-[#475467]'}`}>
+                  {!r.seen ? 'New from a customer: switch on to show it' : 'From a customer order'}
+                </p>
+              )}
               <p className="line-clamp-4 text-sm">&ldquo;{r.body}&rdquo;</p>
               <p className="text-sm font-semibold">
                 {r.name}

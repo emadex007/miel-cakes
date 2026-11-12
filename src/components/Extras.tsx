@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { whatsappLink } from '~/lib/format'
 import type { SiteSettings } from '~/lib/site-fields'
 import type { Review } from '~/lib/types'
-import { CloseIcon, WhatsAppIcon } from './icons'
+import { openChat } from './Chat'
+import { CloseIcon, PlusIcon, WhatsAppIcon } from './icons'
 
 /** Offer strip at the very top of the page. The visitor can hide it for this visit. */
 export function PromoBanner({ s }: { s: SiteSettings }) {
@@ -97,7 +98,31 @@ export function Stars({ rating, className = 'h-4 w-4' }: { rating: number; class
   )
 }
 
-/** Review cards for the homepage. */
+/** Review cards. */
+export function ReviewCards({ reviews }: { reviews: Review[] }) {
+  return (
+    <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+      {reviews.map((r) => (
+        <figure key={r.id} className="mb-5 break-inside-avoid rounded-3xl bg-white p-6 ring-1 ring-line">
+          <Stars rating={r.rating} />
+          <blockquote className="mt-3 text-cocoa/90">&ldquo;{r.body}&rdquo;</blockquote>
+          {r.photo_url && <img src={r.photo_url} alt="" loading="lazy" className="mt-4 w-full rounded-2xl object-cover" />}
+          <figcaption className="mt-4 flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand font-display text-lg text-white">
+              {r.name.trim().charAt(0).toUpperCase()}
+            </span>
+            <span>
+              <span className="block font-semibold">{r.name}</span>
+              {r.occasion && <span className="block text-sm text-muted">{r.occasion}</span>}
+            </span>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  )
+}
+
+/** Review cards with a heading. */
 export function ReviewsSection({ reviews }: { reviews: Review[] }) {
   if (!reviews.length) return null
   return (
@@ -139,8 +164,8 @@ export function FaqList({ items, limit }: { items: { q: string; a: string }[]; l
         <details key={f.q} className="group p-5 sm:p-6">
           <summary className="flex cursor-pointer list-none items-start justify-between gap-4 font-semibold [&::-webkit-details-marker]:hidden">
             <span className="text-lg">{f.q}</span>
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-honey text-lg leading-none transition group-open:rotate-45" aria-hidden="true">
-              +
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-honey transition group-open:rotate-45" aria-hidden="true">
+              <PlusIcon />
             </span>
           </summary>
           <p className="mt-3 leading-relaxed text-cocoa/80">{f.a}</p>
@@ -171,10 +196,17 @@ export function FaqTeaser({ s }: { s: SiteSettings }) {
         <div>
           <p className="eyebrow text-brand">FAQs</p>
           <h2 className="mt-2 font-display text-3xl sm:text-4xl">{s.faq_title}</h2>
-          <p className="mt-3 text-muted">Can&rsquo;t find your answer? Chat with us on WhatsApp.</p>
-          <Link to="/faq" className="btn btn-ghost mt-6 text-cocoa">
-            All questions
-          </Link>
+          <p className="mt-3 text-muted">Can&rsquo;t find your answer? Send us a message and we&rsquo;ll help.</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/faq" className="btn btn-ghost text-cocoa">
+              All questions
+            </Link>
+            {s.chat_enabled === '1' && (
+              <button type="button" onClick={openChat} className="btn btn-ghost text-cocoa">
+                Ask us a question
+              </button>
+            )}
+          </div>
         </div>
         <FaqList items={faqs} limit={4} />
       </div>

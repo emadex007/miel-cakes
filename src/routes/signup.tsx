@@ -32,7 +32,7 @@ function SignupPage() {
       await signUp({ data: form })
       const added = await addPendingItem()
       await refresh()
-      if (added) router.navigate({ to: '/cart' })
+      if (added && redirect !== '/checkout') router.navigate({ to: '/cart' }) // "Buy now" goes straight on to checkout
       else if (redirect) router.history.push(redirect)
       else router.navigate({ to: '/menu' })
     } catch (err) {

@@ -1,14 +1,7 @@
-﻿import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start'
 import { slugify } from '~/lib/format'
 import type { AdminUser, MediaItem, ProductOption } from '~/lib/types'
-import {
-  currentAdmin,
-  endAdminSession,
-  hashPassword,
-  requireAdmin,
-  startAdminSession,
-  verifyPassword,
-} from '~/server/auth'
+import { currentAdmin, endAdminSession, hashPassword, requireAdmin, requireOwner, startAdminSession, verifyPassword } from '~/server/auth'
 import { db, media, queryCategories, queryProducts, queryZones, uniqueSlug } from '~/server/db'
 import { loadSettings, saveSettings } from '~/server/settings'
 
@@ -76,7 +69,7 @@ export const adminLogout = createServerFn({ method: 'POST' }).handler(async () =
 
 // ---------- dashboard ----------
 export const getDashboard = createServerFn({ method: 'GET' }).handler(async () => {
-  await requireAdmin()
+  const me = await requireAdmin()
   const count = async (sql: string) => (await db().prepare(sql).first<{ n: number }>())?.n ?? 0
   const [products, soldOut, categories, zones, mediaCount, settings] = await Promise.all([
     count('SELECT COUNT(*) AS n FROM products'),
@@ -87,8 +80,9 @@ export const getDashboard = createServerFn({ method: 'GET' }).handler(async () =
     loadSettings(),
   ])
   const month = new Date().toISOString().slice(0, 7)
-  const [ordersToAct, newQuotes, newApplications, clients, monthRow] = await Promise.all([
+  const [ordersToAct, bookingsToAct, newQuotes, newApplications, clients, monthRow] = await Promise.all([
     count("SELECT COUNT(*) AS n FROM orders WHERE status IN ('awaiting_confirmation', 'received', 'baking', 'ready', 'out_for_delivery')"),
+    count("SELECT COUNT(*) AS n FROM bookings WHERE status IN ('requested', 'checking') OR (proof_pending = 1 AND status = 'booked')"),
     count("SELECT COUNT(*) AS n FROM quote_requests WHERE status = 'new'"),
     count("SELECT COUNT(*) AS n FROM job_applications WHERE status = 'new'"),
     count('SELECT COUNT(*) AS n FROM clients'),
@@ -102,11 +96,14 @@ export const getDashboard = createServerFn({ method: 'GET' }).handler(async () =
   )
   return {
     ordersToAct,
+    bookingsToAct,
     newQuotes,
     newApplications,
     clients,
-    monthReceipts: monthRow?.n ?? 0,
-    monthPaid: monthRow?.paid ?? 0,
+    // Money stays with the owner
+    monthReceipts: me.role === 'owner' ? (monthRow?.n ?? 0) : 0,
+    monthPaid: me.role === 'owner' ? (monthRow?.paid ?? 0) : 0,
+    isOwner: me.role === 'owner',
     products,
     soldOut,
     categories,
@@ -125,14 +122,14 @@ export const getDashboard = createServerFn({ method: 'GET' }).handler(async () =
 
 // ---------- settings ----------
 export const getAdminSettings = createServerFn({ method: 'GET' }).handler(async () => {
-  await requireAdmin()
+  await requireOwner()
   return loadSettings()
 })
 
 export const updateSettings = createServerFn({ method: 'POST' })
   .validator((d: Record<string, string>) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     await saveSettings(data)
     return { ok: true }
   })
@@ -209,6 +206,8 @@ export interface ProductInput {
   notice_days: number
   is_available: number | boolean
   featured: number | boolean
+  badge: string
+  customizable: number | boolean
   sort: number
 }
 
@@ -238,13 +237,15 @@ export const saveProduct = createServerFn({ method: 'POST' })
       Math.max(0, int(data.notice_days)),
       bool(data.is_available),
       bool(data.featured),
+      str(data.badge, 20),
+      bool(data.customizable),
       int(data.sort),
     ]
     if (id) {
       await db()
         .prepare(
           `UPDATE products SET category_id=?, name=?, slug=?, description=?, image_url=?, options_json=?,
-           availability=?, notice_days=?, is_available=?, featured=?, sort=?, updated_at=datetime('now') WHERE id=?`,
+           availability=?, notice_days=?, is_available=?, featured=?, badge=?, customizable=?, sort=?, updated_at=datetime('now') WHERE id=?`,
         )
         .bind(...values, id)
         .run()
@@ -253,7 +254,7 @@ export const saveProduct = createServerFn({ method: 'POST' })
     const r = await db()
       .prepare(
         `INSERT INTO products (category_id, name, slug, description, image_url, options_json, availability,
-         notice_days, is_available, featured, sort) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+         notice_days, is_available, featured, badge, customizable, sort) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       )
       .bind(...values)
       .run()
@@ -293,7 +294,7 @@ export const listZonesAdmin = createServerFn({ method: 'GET' }).handler(async ()
 export const saveZone = createServerFn({ method: 'POST' })
   .validator((d: { id?: number; name: string; fee: number; is_active: number | boolean; sort: number }) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     const name = str(data.name, 80)
     if (!name) throw new Error('Give the area a name.')
     const values = [name, Math.max(0, int(data.fee)), bool(data.is_active), int(data.sort)]
@@ -308,7 +309,7 @@ export const saveZone = createServerFn({ method: 'POST' })
 export const deleteZone = createServerFn({ method: 'POST' })
   .validator((id: number) => int(id))
   .handler(async ({ data: id }) => {
-    await requireAdmin()
+    await requireOwner()
     const used = await db()
       .prepare('SELECT (SELECT COUNT(*) FROM orders WHERE zone_id = ?) + (SELECT COUNT(*) FROM bookings WHERE zone_id = ?) AS n')
       .bind(id, id)

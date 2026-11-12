@@ -1,23 +1,65 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { lines, whatsappLink } from '~/lib/format'
 import { parseOccasions, type SiteSettings } from '~/lib/site-fields'
-import { CartIcon, CloseIcon, FacebookIcon, InstagramIcon, MenuIcon, PhoneIcon, TikTokIcon, UserIcon, WhatsAppIcon } from './icons'
+import { ArrowRightIcon, CartIcon, ChevronDownIcon, CloseIcon, FacebookIcon, InstagramIcon, LinkedInIcon, MenuIcon, PhoneIcon, SearchIcon, TikTokIcon, UserIcon, WhatsAppIcon, XIcon } from './icons'
 import { useShop } from './Shop'
 
 const NAV = [
   { to: '/menu', label: 'Menu' },
+  { to: '/events', label: 'Events' },
   { to: '/gallery', label: 'Gallery' },
   { to: '/about', label: 'About' },
   { to: '/careers', label: 'Careers' },
   { to: '/contact', label: 'Contact' },
 ] as const
 
+function navCategories(s: SiteSettings): { name: string; slug: string }[] {
+  try {
+    const v = JSON.parse(s.nav_categories || '[]')
+    return Array.isArray(v) ? v : []
+  } catch {
+    return []
+  }
+}
+
+/** Search box: sends people to the menu with their words filled in. */
+function SearchForm({ onDone, autoFocus = false }: { onDone?: () => void; autoFocus?: boolean }) {
+  const router = useRouter()
+  const [q, setQ] = useState('')
+  return (
+    <form
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const term = q.trim()
+        router.navigate({ to: '/menu', search: term ? { q: term } : {} })
+        onDone?.()
+      }}
+      className="flex items-center gap-2 rounded-full bg-white px-4 ring-1 ring-line focus-within:ring-2 focus-within:ring-brand"
+    >
+      <SearchIcon className="h-5 w-5 shrink-0 text-muted" />
+      <input
+        type="search"
+        aria-label="Search cakes and treats"
+        placeholder="Search cakes, small chops, pastries…"
+        className="min-w-0 flex-1 border-0 bg-transparent py-3 text-base outline-none focus:ring-0"
+        value={q}
+        autoFocus={autoFocus}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      <button type="submit" className="text-sm font-bold text-brand">Search</button>
+    </form>
+  )
+}
+
 function socialsOf(s: SiteSettings) {
   return [
     { href: s.instagram, label: 'Instagram', Icon: InstagramIcon },
     { href: s.facebook, label: 'Facebook', Icon: FacebookIcon },
     { href: s.tiktok, label: 'TikTok', Icon: TikTokIcon },
+    { href: s.twitter, label: 'X (Twitter)', Icon: XIcon },
+    { href: s.linkedin, label: 'LinkedIn', Icon: LinkedInIcon },
   ].filter((x) => x.href)
 }
 
@@ -43,6 +85,8 @@ export function SiteHeader({ s }: { s: SiteSettings }) {
   }, [])
   const wa = whatsappLink(s.whatsapp, `Hello ${s.business_name}, I'd like to place an order.`)
   const socials = socialsOf(s)
+  const cats = navCategories(s)
+  const [searching, setSearching] = useState(false)
   const { me } = useShop()
   const cartCount = me?.cartCount ?? 0
 
@@ -85,17 +129,46 @@ export function SiteHeader({ s }: { s: SiteSettings }) {
           <Link to="/" className="shrink-0" aria-label={`${s.business_name} home`} onClick={() => setOpen(false)}>
             <Brand s={s} />
           </Link>
-          <nav className="hidden items-center gap-7 lg:flex" aria-label="Main">
-            {NAV.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className="relative py-2 text-base font-semibold text-cocoa/80 transition-colors hover:text-brand"
-                activeProps={{ className: '!text-brand after:absolute after:inset-x-0 after:-bottom-0.5 after:h-[3px] after:rounded-full after:bg-accent' }}
-              >
-                {n.label}
-              </Link>
-            ))}
+          <nav className="hidden items-center gap-5 lg:flex xl:gap-7" aria-label="Main">
+            {NAV.map((n) =>
+              n.to === '/menu' && cats.length > 0 ? (
+                <div key={n.to} className="group/menu relative">
+                  <Link
+                    to="/menu"
+                    className="relative flex items-center gap-1 py-2 text-base font-semibold text-cocoa/80 transition-colors hover:text-brand"
+                    activeProps={{ className: '!text-brand' }}
+                    aria-haspopup="true"
+                  >
+                    {n.label} <ChevronDownIcon className="h-4 w-4 transition group-hover/menu:rotate-180" />
+                  </Link>
+                  <div className="invisible absolute left-1/2 top-full z-50 w-64 -translate-x-1/2 pt-3 opacity-0 transition group-focus-within/menu:visible group-focus-within/menu:opacity-100 group-hover/menu:visible group-hover/menu:opacity-100">
+                    <ul className="rounded-2xl bg-white p-2 shadow-[0_18px_44px_-14px_rgba(0,0,0,.35)] ring-1 ring-line">
+                      {cats.map((c) => (
+                        <li key={c.slug}>
+                          <Link to="/menu" search={{ c: c.slug }} className="block rounded-xl px-4 py-2.5 font-semibold text-cocoa/85 hover:bg-honey hover:text-brand">
+                            {c.name}
+                          </Link>
+                        </li>
+                      ))}
+                      <li className="mt-1 border-t border-line pt-1">
+                        <Link to="/menu" className="block rounded-xl px-4 py-2.5 text-sm font-bold text-brand hover:bg-honey">
+                          See the full menu <ArrowRightIcon className="ml-1 inline h-4 w-4 align-[-3px]" />
+                        </Link>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  className="relative py-2 text-base font-semibold text-cocoa/80 transition-colors hover:text-brand"
+                  activeProps={{ className: '!text-brand after:absolute after:inset-x-0 after:-bottom-0.5 after:h-[3px] after:rounded-full after:bg-accent' }}
+                >
+                  {n.label}
+                </Link>
+              ),
+            )}
           </nav>
           <div className="flex items-center gap-1 sm:gap-2">
             <Link to="/contact" hash="quote" className="btn btn-ghost hidden text-cocoa xl:inline-flex">
@@ -104,6 +177,15 @@ export function SiteHeader({ s }: { s: SiteSettings }) {
             <Link to="/menu" className="btn btn-primary hidden sm:inline-flex">
               Order now
             </Link>
+            <button
+              type="button"
+              onClick={() => setSearching((v) => !v)}
+              className="rounded-full p-2 text-cocoa transition hover:bg-honey"
+              aria-label="Search"
+              aria-expanded={searching}
+            >
+              <SearchIcon />
+            </button>
             <Link
               to={me ? '/account' : '/login'}
               className="rounded-full p-2 text-cocoa transition hover:bg-honey"
@@ -131,12 +213,31 @@ export function SiteHeader({ s }: { s: SiteSettings }) {
             </button>
           </div>
         </div>
+        {searching && (
+          <div className="border-t border-line bg-cream px-4 py-3 sm:px-6">
+            <div className="mx-auto max-w-2xl">
+              <SearchForm autoFocus onDone={() => setSearching(false)} />
+            </div>
+          </div>
+        )}
         {open && (
-          <nav className="border-t border-line bg-cream px-4 pb-8 pt-2 lg:hidden" aria-label="Mobile">
+          <nav className="border-t border-line bg-cream px-4 pb-8 pt-4 lg:hidden" aria-label="Mobile">
+            <SearchForm onDone={() => setOpen(false)} />
             {NAV.map((n) => (
-              <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="block border-b border-line py-4 font-display text-2xl">
-                {n.label}
-              </Link>
+              <div key={n.to} className="border-b border-line">
+                <Link to={n.to} onClick={() => setOpen(false)} className="block py-4 font-display text-2xl">
+                  {n.label}
+                </Link>
+                {n.to === '/menu' && cats.length > 0 && (
+                  <div className="-mt-1 flex flex-wrap gap-2 pb-4">
+                    {cats.map((c) => (
+                      <Link key={c.slug} to="/menu" search={{ c: c.slug }} onClick={() => setOpen(false)} className="rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold ring-1 ring-line">
+                        {c.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/menu" onClick={() => setOpen(false)} className="btn btn-primary">
@@ -208,6 +309,7 @@ export function SiteFooter({ s }: { s: SiteSettings }) {
           <p className="eyebrow text-accent">Explore</p>
           <ul className="mt-5 space-y-3 text-cream/85">
             <li><Link to="/menu" className="hover:text-accent">Menu</Link></li>
+            <li><Link to="/events" className="hover:text-accent">Event bookings</Link></li>
             <li><Link to="/gallery" className="hover:text-accent">Gallery</Link></li>
             <li><Link to="/about" className="hover:text-accent">About us</Link></li>
             <li><Link to="/careers" className="hover:text-accent">Careers</Link></li>
@@ -215,7 +317,8 @@ export function SiteFooter({ s }: { s: SiteSettings }) {
             <li><Link to="/track" className="hover:text-accent">Track your order</Link></li>
             <li><Link to="/faq" className="hover:text-accent">FAQs</Link></li>
             <li><Link to="/terms" className="hover:text-accent">Terms & refunds</Link></li>
-            <li><Link to="/contact" hash="quote" className="font-semibold text-accent hover:underline">Get a quote →</Link></li>
+            <li><Link to="/privacy" className="hover:text-accent">Privacy policy</Link></li>
+            <li><Link to="/contact" hash="quote" className="font-semibold text-accent hover:underline">Get a quote <ArrowRightIcon className="ml-1 inline h-4 w-4 align-[-3px]" /></Link></li>
           </ul>
         </div>
 

@@ -5,6 +5,7 @@ import { deleteZone, listZonesAdmin, saveZone } from '~/fns/admin'
 import { addBlockedDate, listBlockedDates, removeBlockedDate } from '~/fns/orders-admin'
 import { formatDate } from '~/components/ReceiptSheet'
 import type { DeliveryZone } from '~/lib/types'
+import { CloseIcon } from '~/components/icons'
 
 export const Route = createFileRoute('/admin/delivery')({
   loader: async () => {
@@ -21,7 +22,9 @@ function DeliveryAdmin() {
   const { zones, blocked } = Route.useLoaderData()
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>(() => zones.map(toRow))
-  useEffect(() => setRows(zones.map(toRow)), [zones])
+  useEffect(() => {
+    setRows(zones.map(toRow))
+  }, [zones])
   const { busy, error, notice, run } = useAction()
 
   const update = (n: number, patch: Partial<Row>) => setRows((r) => r.map((row, i) => (i === n ? { ...row, ...patch, dirty: true } : row)))
@@ -162,7 +165,7 @@ function BlockedDates({ blocked }: { blocked: { date: string; reason: string }[]
               <span className="font-semibold">{formatDate(b.date)}</span>
               {b.reason && <span className="text-[#667085]">· {b.reason}</span>}
               <button type="button" onClick={() => remove(b.date)} className="rounded-full px-2 text-[#667085] hover:bg-white hover:text-red-700" aria-label={`Unblock ${b.date}`}>
-                ×
+                <CloseIcon className="h-4 w-4" />
               </button>
             </li>
           ))}

@@ -1,8 +1,10 @@
 import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { OrderTracker } from '~/components/OrderTracker'
-import { WhatsAppIcon } from '~/components/icons'
-import { getMyOrder, retryCardPayment, switchToTransfer } from '~/fns/shop'
+import { CheckIcon, StarIcon, WhatsAppIcon } from '~/components/icons'
+import { getMyOrder, retryCardPayment, submitOrderReview, switchToTransfer } from '~/fns/shop'
+import { CustomDetails } from '~/components/CakeCustomizer'
+import { describeCustom } from '~/lib/custom'
 import { formatNaira, whatsappLink } from '~/lib/format'
 
 const root = getRouteApi('__root__')
@@ -49,7 +51,7 @@ function OrderPage() {
     )
   }
 
-  const { order, items, events, pay } = data
+  const { order, items, events, pay, myReview } = data
   const unpaid = order.payment_status !== 'paid' && order.status !== 'cancelled'
   const wa = whatsappLink(s.whatsapp, `Hello ${s.business_name}, about my order ${order.code}: `)
 
@@ -86,6 +88,7 @@ function OrderPage() {
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="space-y-6">
           <OrderTracker status={order.status} fulfilment={order.fulfilment} events={events} />
+          {order.status === 'completed' && <ReviewBox code={order.code} existing={myReview} onDone={() => router.invalidate()} />}
           {unpaid && (
             <PayBox
               code={order.code}
@@ -101,7 +104,7 @@ function OrderPage() {
         <aside className="h-fit space-y-4 rounded-3xl bg-white p-6 ring-1 ring-line">
           <h2 className="font-display text-2xl">Details</h2>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-muted">Date</dt><dd className="text-right font-semibold">{niceDate(order.needed_date)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-muted">Date</dt><dd className="text-right font-semibold">{niceDate(order.needed_date)}{order.time_slot && <span className="block font-normal text-muted">{order.time_slot}</span>}</dd></div>
             <div className="flex justify-between gap-3">
               <dt className="text-muted">{order.fulfilment === 'delivery' ? 'Delivery to' : 'Pickup'}</dt>
               <dd className="text-right font-semibold">{order.fulfilment === 'delivery' ? `${order.address}${order.zone_name ? `, ${order.zone_name}` : ''}` : s.address}</dd>
@@ -109,7 +112,7 @@ function OrderPage() {
             <div className="flex justify-between gap-3"><dt className="text-muted">Phone</dt><dd className="font-semibold tabular">{order.contact_phone}</dd></div>
             <div className="flex justify-between gap-3">
               <dt className="text-muted">Payment</dt>
-              <dd className="font-semibold">{order.payment_status === 'paid' ? 'Paid ✓' : order.payment_method === 'paystack' ? 'Card (not paid yet)' : 'Bank transfer'}</dd>
+              <dd className="font-semibold">{order.payment_status === 'paid' ? <span className="inline-flex items-center gap-1 text-emerald-700">Paid <CheckIcon /></span> : order.payment_method === 'paystack' ? 'Card (not paid yet)' : 'Bank transfer'}</dd>
             </div>
           </dl>
           <ul className="space-y-2 border-t border-line pt-4 text-sm">
@@ -119,6 +122,7 @@ function OrderPage() {
                   <span className="font-semibold">{i.qty} × {i.name}</span>
                   <span className="block text-muted">{i.option_label}</span>
                   {i.note && <span className="block italic text-cocoa/70">&ldquo;{i.note}&rdquo;</span>}
+                  <CustomDetails rows={describeCustom(i.custom_json)} refUrl={i.ref_key ? `/api/my/ref/o-${i.id}` : undefined} />
                 </span>
                 <span className="tabular">{formatNaira(i.unit_price * i.qty)}</span>
               </li>
@@ -127,6 +131,7 @@ function OrderPage() {
           <div className="space-y-1 border-t border-line pt-4 tabular">
             <div className="flex justify-between text-sm"><span className="text-muted">Items</span><span>{formatNaira(order.subtotal)}</span></div>
             {order.delivery_fee > 0 && <div className="flex justify-between text-sm"><span className="text-muted">Delivery</span><span>{formatNaira(order.delivery_fee)}</span></div>}
+            {order.discount > 0 && <div className="flex justify-between text-sm text-emerald-700"><span>Discount ({order.discount_code})</span><span>−{formatNaira(order.discount)}</span></div>}
             <div className="flex justify-between text-lg font-bold"><span>Total</span><span>{formatNaira(order.total)}</span></div>
           </div>
           {order.note && <p className="rounded-2xl bg-soft p-3 text-sm">Your note: {order.note}</p>}
@@ -254,5 +259,83 @@ function PayBox({
       {notice && <p role="status" className="text-sm font-semibold text-emerald-700">{notice}</p>}
       {error && <p role="alert" className="text-sm font-semibold text-highlight">{error}</p>}
     </div>
+  )
+}
+
+/** "Rate your order" once it's delivered or collected. */
+function ReviewBox({ code, existing, onDone }: { code: string; existing: { rating: number; body: string; is_visible: number } | null; onDone: () => void }) {
+  const [rating, setRating] = useState(5)
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  if (existing) {
+    return (
+      <div id="review" className="scroll-mt-28 rounded-3xl bg-honey p-6">
+        <h2 className="font-display text-2xl">Thank you for your review!</h2>
+        <p className="mt-2 flex items-center gap-1 text-brand" aria-label={`${existing.rating} out of 5 stars`}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <StarIcon key={n} filled={n <= existing.rating} className="h-5 w-5" />
+          ))}
+        </p>
+        <p className="mt-2 text-cocoa/80">&ldquo;{existing.body}&rdquo;</p>
+        <p className="mt-2 text-sm text-muted">{existing.is_visible ? 'It’s on our website now.' : 'It will appear on our website once we’ve had a look.'}</p>
+      </div>
+    )
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await submitOrderReview({ data: { code, rating, body } })
+      onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send your review. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form id="review" onSubmit={submit} className="scroll-mt-28 space-y-4 rounded-3xl bg-white p-6 ring-1 ring-line sm:p-8">
+      <div>
+        <h2 className="font-display text-2xl">How was your order?</h2>
+        <p className="mt-1 text-muted">Your review helps other customers, and helps us bake even better.</p>
+      </div>
+      <fieldset>
+        <legend className="mb-2 text-sm font-semibold">Your rating</legend>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n)}
+              aria-label={`${n} star${n > 1 ? 's' : ''}`}
+              aria-pressed={n === rating}
+              className={`rounded-xl p-1.5 transition ${n <= rating ? 'text-accent' : 'text-line'} hover:scale-110`}
+            >
+              <StarIcon filled={n <= rating} className="h-8 w-8" />
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <div>
+        <label htmlFor="rv-body" className="mb-1.5 block text-sm font-semibold">Your review</label>
+        <textarea
+          id="rv-body"
+          rows={3}
+          maxLength={1200}
+          required
+          className="w-full rounded-2xl border-0 bg-cream px-4 py-3 ring-1 ring-line focus:ring-2 focus:ring-brand"
+          placeholder="How did it taste and look? Was it on time?"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+      </div>
+      {error && <p role="alert" className="text-sm font-semibold text-highlight">{error}</p>}
+      <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Send review'}</button>
+    </form>
   )
 }

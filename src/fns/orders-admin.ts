@@ -1,6 +1,6 @@
-﻿import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start'
 import type { Order, OrderStatus } from '~/lib/orders'
-import { hashPassword, requireAdmin } from '~/server/auth'
+import { hashPassword, requireAdmin, requireOwner } from '~/server/auth'
 import { db } from '~/server/db'
 import { loadOrder } from '~/server/orders'
 
@@ -15,7 +15,7 @@ export const listOrders = createServerFn({ method: 'GET' }).handler(async () => 
   await requireAdmin()
   const { results } = await db()
     .prepare(
-      `SELECT o.id, o.code, o.status, o.fulfilment, o.needed_date, o.total, o.payment_method, o.payment_status, o.proof_key,
+      `SELECT o.id, o.code, o.status, o.fulfilment, o.needed_date, o.time_slot, o.discount, o.discount_code, o.total, o.payment_method, o.payment_status, o.proof_key,
               o.created_at, o.contact_phone, c.name AS customer_name, z.name AS zone_name,
               (SELECT COALESCE(SUM(qty), 0) FROM order_items i WHERE i.order_id = o.id) AS item_count
        FROM orders o JOIN customers c ON c.id = o.customer_id LEFT JOIN delivery_zones z ON z.id = o.zone_id
@@ -81,7 +81,7 @@ export const resetCustomerPassword = createServerFn({ method: 'POST' })
 
 // ---------- fully booked dates ----------
 export const listBlockedDates = createServerFn({ method: 'GET' }).handler(async () => {
-  await requireAdmin()
+  await requireOwner()
   const today = new Date(Date.now() + 3_600_000).toISOString().slice(0, 10)
   const { results } = await db().prepare('SELECT date, reason FROM blocked_dates WHERE date >= ? ORDER BY date').bind(today).all<{ date: string; reason: string }>()
   return results
@@ -90,7 +90,7 @@ export const listBlockedDates = createServerFn({ method: 'GET' }).handler(async 
 export const addBlockedDate = createServerFn({ method: 'POST' })
   .validator((d: { date: string; reason: string }) => d)
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireOwner()
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date)) throw new Error('Choose a date.')
     await db()
       .prepare('INSERT INTO blocked_dates (date, reason) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET reason = excluded.reason')
@@ -102,7 +102,7 @@ export const addBlockedDate = createServerFn({ method: 'POST' })
 export const removeBlockedDate = createServerFn({ method: 'POST' })
   .validator((date: string) => str(date, 10))
   .handler(async ({ data: date }) => {
-    await requireAdmin()
+    await requireOwner()
     await db().prepare('DELETE FROM blocked_dates WHERE date = ?').bind(date).run()
     return { ok: true }
   })

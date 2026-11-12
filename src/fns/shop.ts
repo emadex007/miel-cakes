@@ -1,5 +1,6 @@
-﻿import { createServerFn } from '@tanstack/react-start'
+import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
+import { CHOICE_GROUPS, TEXT_FIELDS, customExtra, parseChoices, parseCustom, type CakeCustom } from '~/lib/custom'
 import type { CartLine, Order, OrderStatus } from '~/lib/orders'
 import type { DeliveryZone, Product } from '~/lib/types'
 import {
@@ -10,8 +11,10 @@ import {
   startCustomerSession,
   verifyPassword,
 } from '~/server/auth'
-import { db, mapProduct, queryZones, workerEnv } from '~/server/db'
+import { db, mapProduct, media, queryZones, workerEnv } from '~/server/db'
+import { loadBooking } from '~/server/bookings'
 import { loadOrder } from '~/server/orders'
+import { discountFor, findDiscount, normaliseCode } from '~/server/discounts'
 import { paystackInitialize, paystackVerify, markOrderPaidByReference } from '~/server/paystack'
 import { loadSettings } from '~/server/settings'
 
@@ -130,7 +133,7 @@ type ProductRow = Omit<Product, 'options'> & { options_json: string }
 async function cartLines(customerId: number): Promise<CartLine[]> {
   const { results } = await db()
     .prepare(
-      `SELECT ci.id, ci.product_id, ci.option_label, ci.qty, ci.note, p.name, p.slug, p.image_url, p.options_json,
+      `SELECT ci.id, ci.product_id, ci.option_label, ci.qty, ci.note, ci.custom_json, ci.ref_key, p.name, p.slug, p.image_url, p.options_json,
               p.is_available, p.availability, p.notice_days
        FROM cart_items ci JOIN products p ON p.id = ci.product_id
        WHERE ci.customer_id = ? ORDER BY ci.id`,
@@ -142,6 +145,8 @@ async function cartLines(customerId: number): Promise<CartLine[]> {
       option_label: string
       qty: number
       note: string
+      custom_json: string
+      ref_key: string
       name: string
       slug: string
       image_url: string
@@ -150,6 +155,7 @@ async function cartLines(customerId: number): Promise<CartLine[]> {
       availability: 'daily' | 'preorder'
       notice_days: number
     }>()
+  const settings = results.some((r) => r.custom_json) ? await loadSettings() : {}
   return results.map((r) => {
     let price = 0
     try {
@@ -158,6 +164,7 @@ async function cartLines(customerId: number): Promise<CartLine[]> {
     } catch {
       price = 0
     }
+    const extras = customExtra(parseCustom(r.custom_json), settings)
     return {
       id: r.id,
       product_id: r.product_id,
@@ -165,7 +172,10 @@ async function cartLines(customerId: number): Promise<CartLine[]> {
       slug: r.slug,
       image_url: r.image_url,
       option_label: r.option_label,
-      unit_price: price,
+      unit_price: price + extras,
+      extras,
+      custom_json: r.custom_json || '',
+      ref_key: r.ref_key || '',
       qty: r.qty,
       note: r.note,
       is_available: r.is_available,
@@ -175,8 +185,28 @@ async function cartLines(customerId: number): Promise<CartLine[]> {
   })
 }
 
+/** Keeps only real choices (from the current lists) and trimmed text. */
+async function cleanCustom(custom: CakeCustom | undefined | null): Promise<string> {
+  if (!custom || typeof custom !== 'object') return ''
+  const settings = await loadSettings()
+  const out: CakeCustom = {}
+  for (const g of CHOICE_GROUPS) {
+    const picked = str(custom[g.key], 80)
+    if (!picked) continue
+    if (!parseChoices(settings[g.setting]).some((c) => c.label === picked)) {
+      throw new Error(`“${picked}” is no longer available for ${g.label.toLowerCase()}. Please choose again.`)
+    }
+    out[g.key] = picked
+  }
+  for (const f of TEXT_FIELDS) {
+    const v = str(custom[f.key], f.max)
+    if (v) out[f.key] = v
+  }
+  return Object.keys(out).length ? JSON.stringify(out) : ''
+}
+
 export const addToCart = createServerFn({ method: 'POST' })
-  .validator((d: { product_id: number; option_label: string; qty: number; note: string }) => d)
+  .validator((d: { product_id: number; option_label: string; qty: number; note: string; custom?: CakeCustom | null; ref_key?: string }) => d)
   .handler(async ({ data }) => {
     const me = await currentCustomer()
     if (!me) return { needLogin: true as const }
@@ -188,16 +218,21 @@ export const addToCart = createServerFn({ method: 'POST' })
     if (!option) throw new Error('Please choose a size.')
     const qty = Math.min(99, Math.max(1, int(data.qty, 1)))
     const note = str(data.note, 300)
-    const existing = await db()
-      .prepare('SELECT id, qty FROM cart_items WHERE customer_id = ? AND product_id = ? AND option_label = ? AND note = ?')
-      .bind(me.id, product.id, option.label, note)
-      .first<{ id: number; qty: number }>()
+    const customJson = product.customizable ? await cleanCustom(data.custom) : ''
+    // Only pictures this site stored privately for customers
+    const refKey = /^refs\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(str(data.ref_key, 80)) ? str(data.ref_key, 80) : ''
+    const existing = refKey
+      ? null
+      : await db()
+          .prepare("SELECT id, qty FROM cart_items WHERE customer_id = ? AND product_id = ? AND option_label = ? AND note = ? AND custom_json = ? AND ref_key = ''")
+          .bind(me.id, product.id, option.label, note, customJson)
+          .first<{ id: number; qty: number }>()
     if (existing) {
       await db().prepare('UPDATE cart_items SET qty = ? WHERE id = ?').bind(Math.min(99, existing.qty + qty), existing.id).run()
     } else {
       await db()
-        .prepare('INSERT INTO cart_items (customer_id, product_id, option_label, qty, note) VALUES (?, ?, ?, ?, ?)')
-        .bind(me.id, product.id, option.label, qty, note)
+        .prepare('INSERT INTO cart_items (customer_id, product_id, option_label, qty, note, custom_json, ref_key) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(me.id, product.id, option.label, qty, note, customJson, refKey)
         .run()
     }
     const count = await db().prepare('SELECT COALESCE(SUM(qty), 0) AS n FROM cart_items WHERE customer_id = ?').bind(me.id).first<{ n: number }>()
@@ -209,7 +244,15 @@ export const updateCartItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const me = await requireCustomer()
     const qty = int(data.qty)
-    if (qty <= 0) await db().prepare('DELETE FROM cart_items WHERE id = ? AND customer_id = ?').bind(int(data.id), me.id).run()
+    if (qty <= 0) {
+      const row = await db().prepare('SELECT ref_key FROM cart_items WHERE id = ? AND customer_id = ?').bind(int(data.id), me.id).first<{ ref_key: string }>()
+      await db().prepare('DELETE FROM cart_items WHERE id = ? AND customer_id = ?').bind(int(data.id), me.id).run()
+      // Tidy up: delete the cake picture unless an order is using it
+      if (row?.ref_key) {
+        const used = await db().prepare('SELECT 1 FROM order_items WHERE ref_key = ? UNION SELECT 1 FROM cart_items WHERE ref_key = ?').bind(row.ref_key, row.ref_key).first()
+        if (!used) await media().delete(row.ref_key)
+      }
+    }
     else await db().prepare('UPDATE cart_items SET qty = ? WHERE id = ? AND customer_id = ?').bind(Math.min(99, qty), int(data.id), me.id).run()
     return { ok: true }
   })
@@ -217,7 +260,7 @@ export const updateCartItem = createServerFn({ method: 'POST' })
 export const getCheckout = createServerFn({ method: 'GET' }).handler(async () => {
   const me = await currentCustomer()
   if (!me) return null
-  const [lines, zones, blocked, pay] = await Promise.all([
+  const [lines, zones, blocked, pay, settings, full] = await Promise.all([
     cartLines(me.id),
     queryZones(true),
     db()
@@ -226,10 +269,47 @@ export const getCheckout = createServerFn({ method: 'GET' }).handler(async () =>
       .all<{ date: string; reason: string }>()
       .then((r) => r.results),
     paymentOptions(),
+    loadSettings(),
+    fullDates(),
   ])
   const maxNotice = Math.max(0, ...lines.map((l) => (l.availability === 'preorder' ? l.notice_days : 0)))
-  return { me, lines, zones, blocked, pay, minDate: addDays(lagosToday(), maxNotice), maxNotice }
+  const known = new Set(blocked.map((b) => b.date))
+  const allBlocked = [...blocked, ...full.filter((d) => !known.has(d)).map((date) => ({ date, reason: 'Fully booked' }))].sort((a, b) => a.date.localeCompare(b.date))
+  return { me, lines, zones, blocked: allBlocked, pay, minDate: addDays(lagosToday(), maxNotice), maxNotice, slots: timeSlots(settings) }
 })
+
+const timeSlots = (settings: Record<string, string>) =>
+  (settings.delivery_slots ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+
+/** Dates that have reached the daily order limit (cancelled orders don't count). */
+async function fullDates(): Promise<string[]> {
+  const limit = int((await loadSettings()).daily_order_limit)
+  if (limit <= 0) return []
+  const { results } = await db()
+    .prepare(
+      `SELECT needed_date AS d FROM orders WHERE needed_date >= ? AND status != 'cancelled'
+       GROUP BY needed_date HAVING COUNT(*) >= ?`,
+    )
+    .bind(lagosToday(), limit)
+    .all<{ d: string }>()
+  return results.map((r) => r.d)
+}
+
+/** Checkout preview: is this code valid for what's in the cart, and how much does it take off? */
+export const checkDiscount = createServerFn({ method: 'POST' })
+  .validator((code: string) => String(code ?? ''))
+  .handler(async ({ data: code }) => {
+    const me = await requireCustomer()
+    const lines = await cartLines(me.id)
+    const subtotal = lines.reduce((sum, l) => sum + l.unit_price * l.qty, 0)
+    const d = await findDiscount(db(), code)
+    const r = discountFor(d, subtotal)
+    if (!r.ok) throw new Error(r.reason)
+    return { code: d!.code, amount: r.amount, label: r.label }
+  })
 
 // =====================================================================
 // Place order + pay
@@ -240,6 +320,8 @@ export interface PlaceOrderInput {
   address: string
   contact_phone: string
   needed_date: string
+  time_slot: string
+  discount_code: string
   note: string
   payment_method: 'paystack' | 'transfer'
 }
@@ -275,6 +357,13 @@ export const placeOrder = createServerFn({ method: 'POST' })
     if (needed < minDate) throw new Error(`The earliest date for this order is ${minDate}, because some items need ${maxNotice} days’ notice.`)
     const blocked = await db().prepare('SELECT reason FROM blocked_dates WHERE date = ?').bind(needed).first<{ reason: string }>()
     if (blocked) throw new Error(`We’re fully booked on ${needed}${blocked.reason ? ` (${blocked.reason})` : ''}. Please choose another date.`)
+    if ((await fullDates()).includes(needed)) throw new Error(`We’re fully booked on ${needed}. Please choose another date.`)
+
+    // Time slot (only when she has set some up)
+    const settings = await loadSettings()
+    const slots = timeSlots(settings)
+    const slot = str(data.time_slot, 80)
+    if (slots.length && !slots.includes(slot)) throw new Error('Please choose a time for your order.')
 
     // Delivery
     let zone: DeliveryZone | null = null
@@ -295,14 +384,40 @@ export const placeOrder = createServerFn({ method: 'POST' })
     // Totals (always recalculated here from current menu prices)
     const subtotal = lines.reduce((sum, l) => sum + l.unit_price * l.qty, 0)
     const deliveryFee = zone ? zone.fee : 0
-    const total = subtotal + deliveryFee
+    let discount = 0
+    let discountCode = ''
+    if (normaliseCode(data.discount_code)) {
+      const d = await findDiscount(db(), data.discount_code)
+      const r = discountFor(d, subtotal)
+      if (!r.ok) throw new Error(`Discount code: ${r.reason}`)
+      discount = r.amount
+      discountCode = d!.code
+    }
+    const total = subtotal + deliveryFee - discount
 
     const r = await db()
       .prepare(
-        `INSERT INTO orders (code, customer_id, status, fulfilment, zone_id, address, contact_phone, needed_date, subtotal,
-         delivery_fee, total, payment_method, payment_status, note) VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?)`,
+        `INSERT INTO orders (code, customer_id, status, fulfilment, zone_id, address, contact_phone, needed_date, time_slot, subtotal,
+         delivery_fee, discount_code, discount, total, payment_method, payment_status, note)
+         VALUES (?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?)`,
       )
-      .bind(`pending-${randomHex(6)}`, me.id, zone ? 'delivery' : 'pickup', zone?.id ?? null, address, phone, needed, subtotal, deliveryFee, total, method, str(data.note, 1000))
+      .bind(
+        `pending-${randomHex(6)}`,
+        me.id,
+        zone ? 'delivery' : 'pickup',
+        zone?.id ?? null,
+        address,
+        phone,
+        needed,
+        slot,
+        subtotal,
+        deliveryFee,
+        discountCode,
+        discount,
+        total,
+        method,
+        str(data.note, 1000),
+      )
       .run()
     const id = Number(r.meta.last_row_id)
     const code = `MC-${1000 + id}`
@@ -310,11 +425,12 @@ export const placeOrder = createServerFn({ method: 'POST' })
       db().prepare('UPDATE orders SET code = ? WHERE id = ?').bind(code, id),
       ...lines.map((l) =>
         db()
-          .prepare('INSERT INTO order_items (order_id, product_id, name, option_label, unit_price, qty, note) VALUES (?, ?, ?, ?, ?, ?, ?)')
-          .bind(id, l.product_id, l.name, l.option_label, l.unit_price, l.qty, l.note),
+          .prepare('INSERT INTO order_items (order_id, product_id, name, option_label, unit_price, qty, note, custom_json, ref_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(id, l.product_id, l.name, l.option_label, l.unit_price, l.qty, l.note, l.custom_json, l.ref_key),
       ),
       db().prepare(`INSERT INTO order_events (order_id, status, note) VALUES (?, 'pending_payment', 'Order placed on the website')`).bind(id),
       db().prepare('DELETE FROM cart_items WHERE customer_id = ?').bind(me.id),
+      ...(discountCode ? [db().prepare('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?').bind(discountCode)] : []),
     ])
 
     if (method === 'paystack') {
@@ -346,7 +462,11 @@ export const getMyOrder = createServerFn({ method: 'GET' })
       }
     }
     const pay = await paymentOptions()
-    return { needLogin: false as const, notFound: false as const, ...found!, pay }
+    const myReview = await db()
+      .prepare('SELECT rating, body, is_visible FROM reviews WHERE order_id = ?')
+      .bind(found!.order.id)
+      .first<{ rating: number; body: string; is_visible: number }>()
+    return { needLogin: false as const, notFound: false as const, ...found!, pay, myReview }
   })
 
 export const retryCardPayment = createServerFn({ method: 'POST' })
@@ -373,6 +493,35 @@ export const switchToTransfer = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
+/** "Rate your order": one review per completed order. It shows on the website once the owner approves it. */
+export const submitOrderReview = createServerFn({ method: 'POST' })
+  .validator((d: { code: string; rating: number; body: string }) => d)
+  .handler(async ({ data }) => {
+    const me = await requireCustomer()
+    const order = await db()
+      .prepare('SELECT id, status FROM orders WHERE code = ? AND customer_id = ?')
+      .bind(str(data.code, 20), me.id)
+      .first<{ id: number; status: string }>()
+    if (!order) throw new Error('Order not found.')
+    if (order.status !== 'completed') throw new Error('You can review your order once it has been delivered or collected.')
+    const rating = Math.min(5, Math.max(1, int(data.rating, 5)))
+    const body = str(data.body, 1200)
+    if (body.length < 3) throw new Error('Tell us a little about your order.')
+    const exists = await db().prepare('SELECT id FROM reviews WHERE order_id = ?').bind(order.id).first()
+    if (exists) throw new Error('You’ve already reviewed this order. Thank you!')
+    // First name and last initial, e.g. "Ada O."
+    const parts = me.name.trim().split(/\s+/)
+    const shown = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.` : parts[0]
+    const items = await db().prepare('SELECT name FROM order_items WHERE order_id = ? ORDER BY id LIMIT 2').bind(order.id).all<{ name: string }>()
+    await db()
+      .prepare(
+        "INSERT INTO reviews (name, occasion, body, rating, photo_url, is_visible, sort, source, seen, order_id, customer_id) VALUES (?, ?, ?, ?, '', 0, 0, 'customer', 0, ?, ?)",
+      )
+      .bind(shown, items.results.map((i) => i.name).join(' & ').slice(0, 80), body, rating, order.id, me.id)
+      .run()
+    return { ok: true }
+  })
+
 export const myOrders = createServerFn({ method: 'GET' }).handler(async () => {
   const me = await currentCustomer()
   if (!me) return null
@@ -392,15 +541,41 @@ export const trackOrder = createServerFn({ method: 'POST' })
     const code = str(data.code, 20).toUpperCase().replace(/\s+/g, '')
     const phone = digits(data.phone).slice(-7)
     if (!code || phone.length < 7) throw new Error('Enter your order number and the phone number you used.')
+
+    // Event bookings (MB-…)
+    if (code.startsWith('MB')) {
+      const b = await loadBooking(db(), 'WHERE b.code = ?', [`MB-${code.replace(/^MB-?/, '')}`])
+      const ok = b && [b.booking.contact_phone, b.booking.customer_phone ?? ''].some((p) => digits(p).slice(-7) === phone)
+      if (!b || !ok) throw new Error('We couldn’t find a booking with that number and phone. Check both and try again.')
+      const k = b.booking
+      return {
+        kind: 'booking' as const,
+        code: k.code,
+        status: k.status,
+        event_type: k.event_type,
+        event_date: k.event_date,
+        event_time: k.event_time,
+        guests: k.guests,
+        fulfilment: k.fulfilment,
+        zone_name: k.zone_name ?? '',
+        quote_amount: k.quote_amount,
+        deposit_amount: k.deposit_amount,
+        paid_amount: k.paid_amount,
+        events: b.events.map((e) => ({ status: e.status, note: e.note, created_at: e.created_at })),
+      }
+    }
+
     const found = await loadOrder('WHERE o.code = ?', [code.startsWith('MC-') ? code : `MC-${code.replace(/^MC/, '')}`])
     const match = found && [found.order.contact_phone, found.order.customer_phone ?? ''].some((p) => digits(p).slice(-7) === phone)
     if (!found || !match) throw new Error('We couldn’t find an order with that number and phone. Check both and try again.')
     const { order, items, events } = found
     return {
+      kind: 'order' as const,
       code: order.code,
       status: order.status as OrderStatus,
       fulfilment: order.fulfilment,
       needed_date: order.needed_date,
+      time_slot: order.time_slot ?? '',
       zone_name: order.zone_name ?? '',
       items: items.map((i) => ({ name: i.name, option_label: i.option_label, qty: i.qty })),
       events: events.map((e) => ({ status: e.status, note: e.note, created_at: e.created_at })),

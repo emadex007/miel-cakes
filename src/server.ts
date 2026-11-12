@@ -1,9 +1,11 @@
 import handler from '@tanstack/react-start/server-entry'
+import { markBookingPaidByReference } from '~/server/bookings'
+import { adminAlerts } from '~/server/admin-alerts'
+import { handleChatApi } from '~/server/chat-api'
 import { markOrderPaidByReference, paystackSignatureValid, paystackVerify } from '~/server/paystack'
 
 // Worker entry (see `main` in wrangler.toml). Handles media and uploads directly,
 // then hands every other request to TanStack Start.
-// Phase 3 adds the Paystack webhook here.
 
 type AppEnv = Cloudflare.Env
 
@@ -35,6 +37,19 @@ const VIDEO_TYPES: Record<string, string> = {
 export default {
   async fetch(request: Request, env: AppEnv) {
     const url = new URL(request.url)
+
+    // One address for everyone: www.mielcakes.com and the old workers.dev link
+    // both send visitors to the main domain (set CANONICAL_HOST in wrangler.toml).
+    const canonical = (env as { CANONICAL_HOST?: string }).CANONICAL_HOST
+    if (canonical && url.hostname !== canonical && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+      if (url.hostname === `www.${canonical}` || url.hostname.endsWith('.workers.dev')) {
+        url.hostname = canonical
+        url.protocol = 'https:'
+        url.port = ''
+        // 301 for page visits; 308 keeps POST requests (forms, webhooks) intact
+        return Response.redirect(url.toString(), request.method === 'GET' || request.method === 'HEAD' ? 301 : 308)
+      }
+    }
 
     // Public media from R2:  /media/<key>  (supports Range requests so videos play and seek on iPhones)
     if (url.pathname.startsWith('/media/') && (request.method === 'GET' || request.method === 'HEAD')) {
@@ -147,6 +162,84 @@ export default {
       return new Response(obj.body, { headers })
     }
 
+    // Dashboard menu badges:  GET /api/admin/alerts
+    if (url.pathname === '/api/admin/alerts' && request.method === 'GET') {
+      const admin = await adminFromCookie(request, env)
+      if (!admin) return json({ error: 'Please sign in again.' }, 401)
+      return new Response(JSON.stringify(await adminAlerts(env.DB)), {
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      })
+    }
+
+    // Live chat:  /api/chat/...  (visitors by chat token, dashboard by admin cookie)
+    if (url.pathname.startsWith('/api/chat/')) {
+      return handleChatApi(request, env, url, {
+        admin: () => adminFromCookie(request, env),
+        customerId: () => customerIdFromCookie(request, env),
+      })
+    }
+
+    // Cake customiser picture:  POST /api/cart/reference  (multipart "file"). Signed-in customers only.
+    if (url.pathname === '/api/cart/reference' && request.method === 'POST') {
+      const customerId = await customerIdFromCookie(request, env)
+      if (!customerId) return json({ error: 'Please sign in to add a picture.' }, 401)
+      const form = await request.formData().catch(() => null)
+      const file = form?.get('file')
+      if (!(file instanceof File)) return json({ error: 'Choose a picture.' }, 400)
+      const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as Record<string, string>)[file.type]
+      if (!ext) return json({ error: 'Upload a photo (JPG, PNG or WebP).' }, 400)
+      if (file.size > 8 * 1024 * 1024) return json({ error: 'The picture must be 8 MB or smaller.' }, 400)
+      const key = `refs/${crypto.randomUUID()}.${ext}`
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+      return json({ key })
+    }
+
+    // Customer's own cake picture (cart, order page):  GET /api/my/ref/<cartItemId|o-orderItemId>
+    const myRef = url.pathname.match(/^\/api\/my\/ref\/(o-)?(\d+)$/)
+    if (myRef && request.method === 'GET') {
+      const customerId = await customerIdFromCookie(request, env)
+      if (!customerId) return new Response('Please sign in.', { status: 401 })
+      const row = myRef[1]
+        ? await env.DB.prepare('SELECT i.ref_key FROM order_items i JOIN orders o ON o.id = i.order_id WHERE i.id = ? AND o.customer_id = ?')
+            .bind(Number(myRef[2]), customerId)
+            .first<{ ref_key: string }>()
+        : await env.DB.prepare('SELECT ref_key FROM cart_items WHERE id = ? AND customer_id = ?').bind(Number(myRef[2]), customerId).first<{ ref_key: string }>()
+      return privateFile(env, row?.ref_key)
+    }
+
+    // Cake picture for admins:  GET /api/admin/order-item-ref/<orderItemId>
+    const itemRef = url.pathname.match(/^\/api\/admin\/order-item-ref\/(\d+)$/)
+    if (itemRef && request.method === 'GET') {
+      const admin = await adminFromCookie(request, env)
+      if (!admin) return new Response('Please sign in to the admin dashboard.', { status: 401 })
+      const row = await env.DB.prepare('SELECT ref_key FROM order_items WHERE id = ?').bind(Number(itemRef[1])).first<{ ref_key: string }>()
+      return privateFile(env, row?.ref_key)
+    }
+
+    // Event bookings: proof of payment and reference photo (booking owner only)
+    if ((url.pathname === '/api/bookings/proof' || url.pathname === '/api/bookings/reference') && request.method === 'POST') {
+      return bookingUpload(request, env, url)
+    }
+
+    // Booking files for admins:  GET /api/admin/booking-file/<bookingId>/proof|reference
+    const bookingFile = url.pathname.match(/^\/api\/admin\/booking-file\/(\d+)\/(proof|reference)$/)
+    if (bookingFile && request.method === 'GET') {
+      const admin = await adminFromCookie(request, env)
+      if (!admin) return new Response('Please sign in to the admin dashboard.', { status: 401 })
+      const row = await env.DB.prepare('SELECT proof_key, reference_image FROM bookings WHERE id = ?')
+        .bind(Number(bookingFile[1]))
+        .first<{ proof_key: string; reference_image: string }>()
+      const key = bookingFile[2] === 'proof' ? row?.proof_key : row?.reference_image
+      if (!key) return new Response('No file was uploaded for this booking.', { status: 404 })
+      const obj = await env.MEDIA.get(key)
+      if (!obj) return new Response('File not found.', { status: 404 })
+      const headers = new Headers()
+      obj.writeHttpMetadata(headers)
+      headers.set('cache-control', 'private, no-store')
+      headers.set('x-content-type-options', 'nosniff')
+      return new Response(obj.body, { headers })
+    }
+
     // Job application:  POST /api/careers/apply  (multipart form, optional "cv" file). Public.
     if (url.pathname === '/api/careers/apply' && request.method === 'POST') {
       return applyForJob(request, env)
@@ -157,6 +250,7 @@ export default {
     if (cvMatch && request.method === 'GET') {
       const admin = await adminFromCookie(request, env)
       if (!admin) return new Response('Please sign in to the admin dashboard.', { status: 401 })
+      if (admin.role !== 'owner') return new Response('Only the owner can open CVs.', { status: 403 })
       const row = await env.DB.prepare('SELECT cv_key, cv_name FROM job_applications WHERE id = ?')
         .bind(Number(cvMatch[1]))
         .first<{ cv_key: string; cv_name: string }>()
@@ -173,6 +267,53 @@ export default {
 
     return handler.fetch(request)
   },
+}
+
+async function bookingUpload(request: Request, env: AppEnv, url: URL) {
+  const customerId = await customerIdFromCookie(request, env)
+  if (!customerId) return json({ error: 'Please sign in again.' }, 401)
+  const isProof = url.pathname.endsWith('/proof')
+  const code = (url.searchParams.get('code') ?? '').slice(0, 20)
+  const b = await env.DB.prepare(
+    'SELECT id, status, quote_amount, paid_amount, proof_key, reference_image FROM bookings WHERE code = ? AND customer_id = ?',
+  )
+    .bind(code, customerId)
+    .first<{ id: number; status: string; quote_amount: number; paid_amount: number; proof_key: string; reference_image: string }>()
+  if (!b) return json({ error: 'Booking not found.' }, 404)
+  if (isProof) {
+    if (!['quoted', 'checking', 'booked'].includes(b.status)) return json({ error: 'This booking isn’t waiting for a payment.' }, 400)
+    if (b.quote_amount > 0 && b.paid_amount >= b.quote_amount) return json({ error: 'This booking is already paid in full.' }, 400)
+  } else if (!['requested', 'quoted', 'checking', 'booked'].includes(b.status)) {
+    return json({ error: 'This booking is closed.' }, 400)
+  }
+
+  const form = await request.formData()
+  const file = form.get('file')
+  if (!(file instanceof File)) return json({ error: isProof ? 'Choose your payment screenshot or receipt.' : 'Choose a picture.' }, 400)
+  const types: Record<string, string> = isProof
+    ? { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' }
+    : { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+  const ext = types[file.type]
+  if (!ext) return json({ error: isProof ? 'Upload a photo/screenshot (JPG, PNG) or a PDF.' : 'Upload a photo (JPG, PNG or WebP).' }, 400)
+  if (file.size > 8 * 1024 * 1024) return json({ error: 'The file must be 8 MB or smaller.' }, 400)
+
+  // Stored privately: not under uploads/, so /media never serves these
+  const key = `${isProof ? 'proofs' : 'refs'}/${crypto.randomUUID()}.${ext}`
+  await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+  if (isProof) {
+    const next = b.status === 'quoted' ? 'checking' : b.status
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE bookings SET proof_key = ?, proof_uploaded_at = datetime('now'), proof_pending = 1, status = ?, updated_at = datetime('now') WHERE id = ?`,
+      ).bind(key, next, b.id),
+      env.DB.prepare(`INSERT INTO booking_events (booking_id, status, note) VALUES (?, ?, 'Proof of payment uploaded')`).bind(b.id, next),
+    ])
+    if (b.proof_key) await env.MEDIA.delete(b.proof_key)
+  } else {
+    await env.DB.prepare(`UPDATE bookings SET reference_image = ?, updated_at = datetime('now') WHERE id = ?`).bind(key, b.id).run()
+    if (b.reference_image) await env.MEDIA.delete(b.reference_image)
+  }
+  return json({ ok: true })
 }
 
 async function applyForJob(request: Request, env: AppEnv) {
@@ -239,6 +380,17 @@ async function applyForJob(request: Request, env: AppEnv) {
   return json({ code, jobTitle })
 }
 
+async function privateFile(env: AppEnv, key: string | undefined | null) {
+  if (!key) return new Response('No picture was added.', { status: 404 })
+  const obj = await env.MEDIA.get(key)
+  if (!obj) return new Response('File not found.', { status: 404 })
+  const headers = new Headers()
+  obj.writeHttpMetadata(headers)
+  headers.set('cache-control', 'private, max-age=3600')
+  headers.set('x-content-type-options', 'nosniff')
+  return new Response(obj.body, { headers })
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 }
@@ -260,7 +412,7 @@ async function adminFromCookie(request: Request, env: AppEnv) {
 }
 
 async function sitemap(origin: string, env: AppEnv) {
-  const pages = ['/', '/menu', '/gallery', '/about', '/careers', '/contact', '/faq', '/terms']
+  const pages = ['/', '/menu', '/events', '/gallery', '/about', '/careers', '/contact', '/faq', '/terms', '/privacy']
   const { results } = await env.DB.prepare(
     `SELECT p.slug, p.updated_at FROM products p JOIN categories c ON c.id = p.category_id WHERE c.is_active = 1`,
   ).all<{ slug: string; updated_at: string }>()
@@ -289,7 +441,10 @@ async function paystackWebhook(request: Request, env: AppEnv) {
   if (event.event === 'charge.success' && event.data?.reference) {
     // Never trust the webhook body alone: confirm with Paystack's API
     const v = await paystackVerify(secret, event.data.reference)
-    if (v?.paid && v.currency === 'NGN') await markOrderPaidByReference(env.DB, v.reference, v.amountNaira)
+    if (v?.paid && v.currency === 'NGN') {
+      if (v.reference.startsWith('MB-')) await markBookingPaidByReference(env.DB, v.reference, v.amountNaira)
+      else await markOrderPaidByReference(env.DB, v.reference, v.amountNaira)
+    }
   }
   return new Response('ok')
 }

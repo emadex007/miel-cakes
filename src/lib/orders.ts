@@ -51,6 +51,8 @@ export interface OrderItemRow {
   unit_price: number
   qty: number
   note: string
+  custom_json: string
+  ref_key: string
 }
 
 export interface OrderEvent {
@@ -71,8 +73,11 @@ export interface Order {
   address: string
   contact_phone: string
   needed_date: string
+  time_slot: string
   subtotal: number
   delivery_fee: number
+  discount_code: string
+  discount: number
   total: number
   payment_method: 'paystack' | 'transfer'
   payment_status: 'unpaid' | 'paid' | 'refunded'
@@ -101,4 +106,7 @@ export interface CartLine {
   is_available: number
   availability: 'daily' | 'preorder'
   notice_days: number
+  custom_json: string
+  ref_key: string
+  extras: number
 }

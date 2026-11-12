@@ -2,6 +2,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Field, MediaField, Messages, PageTitle, Toggle, useAction } from '~/components/admin/ui'
 import { getProductAdmin, saveProduct, type ProductInput } from '~/fns/admin'
+import { ArrowLeftIcon, CloseIcon } from '~/components/icons'
 
 export const Route = createFileRoute('/admin/menu/$id')({
   loader: ({ params }) => getProductAdmin({ data: params.id }),
@@ -25,6 +26,8 @@ function ProductEditor() {
           notice_days: product.notice_days,
           is_available: !!product.is_available,
           featured: !!product.featured,
+          badge: product.badge ?? '',
+          customizable: !!product.customizable,
           sort: product.sort,
         }
       : {
@@ -37,6 +40,8 @@ function ProductEditor() {
           notice_days: 0,
           is_available: true,
           featured: false,
+          badge: '',
+          customizable: false,
           sort: 0,
         },
   )
@@ -59,7 +64,7 @@ function ProductEditor() {
   return (
     <>
       <Link to="/admin/menu" className="text-sm font-semibold text-[#667085] hover:text-cocoa">
-        ← All menu items
+        <ArrowLeftIcon className="mr-1 inline h-4 w-4 align-[-3px]" />All menu items
       </Link>
       <div className="mt-3">
         <PageTitle title={product ? `Edit ${product.name}` : 'Add a menu item'} />
@@ -113,7 +118,7 @@ function ProductEditor() {
                     disabled={form.options.length === 1}
                     aria-label={`Remove size ${n + 1}`}
                   >
-                    ×
+                    <CloseIcon className="h-4 w-4" />
                   </button>
                 </div>
               ))}
@@ -161,6 +166,17 @@ function ProductEditor() {
             )}
             <Toggle id="p-available" checked={!!form.is_available} onChange={(v) => set('is_available', v)} label="Available (switch off when sold out)" />
             <Toggle id="p-featured" checked={!!form.featured} onChange={(v) => set('featured', v)} label="Show on homepage" />
+            <Field label="" help="Shows shape, flavour, layers, filling, icing, decoration and topper choices on this item's page. Set the choices and prices under Website content, then Cake customiser.">
+              <Toggle id="p-custom" checked={!!form.customizable} onChange={(v) => set('customizable', v)} label="Let customers customise this cake" />
+            </Field>
+            <Field label="Label" help="Optional, e.g. Hot, New or Kids. Shown on the product photo. Products with a label appear in that label's row on the homepage." htmlFor="p-badge">
+              <input id="p-badge" list="badge-options" className="admin-input w-48" maxLength={20} value={form.badge} onChange={(e) => set('badge', e.target.value)} placeholder="No label" />
+              <datalist id="badge-options">
+                {['Hot', 'New', 'Kids', 'Top pick', 'Bestseller'].map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </Field>
             <Field label="Position" help="Lower numbers show first in the category." htmlFor="p-sort">
               <input id="p-sort" type="number" className="admin-input w-28" value={form.sort} onChange={(e) => set('sort', Number(e.target.value))} />
             </Field>

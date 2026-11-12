@@ -1,13 +1,15 @@
 import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { Reveal, burstSprinkles } from '~/components/motion'
+import { CakeCustomizer } from '~/components/CakeCustomizer'
 import { PaymentInfo } from '~/components/PaymentInfo'
 import { ProductCard } from '~/components/ProductCard'
-import { WhatsAppIcon } from '~/components/icons'
+import { ArrowRightIcon, GiftIcon, MinusIcon, PlusIcon, WhatsAppIcon } from '~/components/icons'
 import { getProduct } from '~/fns/public'
 import { addToCart } from '~/fns/shop'
 import { savePendingItem, useShop } from '~/components/Shop'
 import { formatNaira, whatsappLink } from '~/lib/format'
+import { jsonLd, productJsonLd } from '~/lib/seo'
 
 const root = getRouteApi('__root__')
 
@@ -20,6 +22,9 @@ export const Route = createFileRoute('/menu/$slug')({
           { name: 'description', content: loaderData.product.description },
           { property: 'og:image', content: loaderData.product.image_url },
         ]
+      : [],
+    scripts: loaderData
+      ? [{ type: 'application/ld+json', children: jsonLd(productJsonLd(loaderData.product, loaderData.settings, `/menu/${loaderData.product.slug}`)) }]
       : [],
   }),
   component: ProductPage,
@@ -95,9 +100,16 @@ function ProductPage() {
 
         <div>
           <h1 className="font-display text-4xl sm:text-5xl">{p.name}</h1>
-          <p className="mt-3 text-2xl font-bold text-brand tabular">{formatNaira(total)}</p>
+          <p className="mt-3 text-2xl font-bold text-brand tabular">
+            {p.customizable && p.options.length > 1 ? `From ${formatNaira(Math.min(...p.options.map((o) => o.price)))}` : formatNaira(total)}
+          </p>
+          {s.perk_text && <p className="mt-3 inline-block rounded-full bg-honey px-4 py-1.5 text-sm font-semibold"><GiftIcon className="mr-1.5 inline h-4 w-4 align-[-3px]" />{s.perk_text}</p>}
           {p.description && <p className="mt-5 text-lg leading-relaxed text-cocoa/80">{p.description}</p>}
 
+          {p.customizable && !soldOut ? (
+            <CakeCustomizer p={p} />
+          ) : (
+            <>
           {p.options.length > 1 && (
             <fieldset className="mt-8">
               <legend className="font-semibold">Choose a size</legend>
@@ -121,9 +133,9 @@ function ProductPage() {
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <span className="font-semibold">Quantity</span>
             <div className="flex items-center rounded-full bg-white ring-1 ring-line">
-              <button type="button" className="h-11 w-11 text-xl" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Fewer">−</button>
+              <button type="button" className="flex h-11 w-11 items-center justify-center" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Fewer"><MinusIcon /></button>
               <span className="w-10 text-center font-bold tabular" aria-live="polite">{qty}</span>
-              <button type="button" className="h-11 w-11 text-xl" onClick={() => setQty((q) => Math.min(99, q + 1))} aria-label="More">+</button>
+              <button type="button" className="flex h-11 w-11 items-center justify-center" onClick={() => setQty((q) => Math.min(99, q + 1))} aria-label="More"><PlusIcon /></button>
             </div>
           </div>
 
@@ -164,11 +176,13 @@ function ProductPage() {
           {added && (
             <p className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-honey px-4 py-3 text-sm font-semibold" role="status">
               Added to your cart.
-              <Link to="/cart" className="text-brand hover:underline">View cart →</Link>
+              <Link to="/cart" className="text-brand hover:underline">View cart <ArrowRightIcon className="ml-1 inline h-4 w-4 align-[-3px]" /></Link>
               <Link to="/menu" className="text-cocoa/70 hover:text-brand">Keep shopping</Link>
             </p>
           )}
           {addError && <p role="alert" className="mt-4 rounded-2xl bg-highlight/10 px-4 py-3 text-sm font-semibold text-highlight">{addError}</p>}
+            </>
+          )}
           <p className="mt-4 text-sm text-muted">
             Pickup is free. Delivery fees depend on your area. <Link to="/contact" className="font-semibold text-brand hover:underline">See delivery fees</Link>
           </p>

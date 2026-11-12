@@ -28,6 +28,8 @@ export interface Product {
   notice_days: number
   is_available: number
   featured: number
+  badge: string
+  customizable: number
   sort: number
 }
 
@@ -179,4 +181,7 @@ export interface Review {
   is_visible: number
   sort: number
   created_at: string
+  source?: 'owner' | 'customer'
+  seen?: number
+  order_id?: number | null
 }

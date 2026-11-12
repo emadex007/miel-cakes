@@ -2,6 +2,7 @@ import { Link, createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { LoopVideo, Reveal } from '~/components/motion'
 import { getGallery } from '~/fns/business'
 import { lines, paragraphs } from '~/lib/format'
+import { ArrowRightIcon } from '~/components/icons'
 
 const root = getRouteApi('__root__')
 
@@ -86,7 +87,7 @@ function AboutPage() {
           <Reveal className="flex flex-wrap items-end justify-between gap-4">
             <h2 className="font-display text-3xl sm:text-4xl">From our kitchen</h2>
             <Link to="/gallery" className="font-semibold text-brand hover:underline">
-              See the full gallery →
+              See the full gallery <ArrowRightIcon className="ml-1 inline h-4 w-4 align-[-3px]" />
             </Link>
           </Reveal>
           <div className="mt-8 columns-2 gap-4 md:columns-3">

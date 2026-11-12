@@ -1,8 +1,10 @@
 import { Link, createFileRoute, getRouteApi, useRouter } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { useShop } from '~/components/Shop'
-import { getCheckout, placeOrder, type PlaceOrderInput } from '~/fns/shop'
+import { checkDiscount, getCheckout, placeOrder, type PlaceOrderInput } from '~/fns/shop'
+import { customOneLine } from '~/lib/custom'
 import { formatNaira } from '~/lib/format'
+import { GiftIcon } from '~/components/icons'
 
 const root = getRouteApi('__root__')
 
@@ -52,13 +54,15 @@ function CheckoutForm({
   bank: Record<string, string>
   onDone: (code: string) => Promise<void>
 }) {
-  const { lines, zones, blocked, pay, minDate, maxNotice, me } = data
+  const { lines, zones, blocked, pay, minDate, maxNotice, me, slots } = data
   const [form, setForm] = useState<PlaceOrderInput>({
     fulfilment: 'pickup',
     zone_id: null,
     address: '',
     contact_phone: me.phone,
     needed_date: minDate,
+    time_slot: '',
+    discount_code: '',
     note: '',
     payment_method: pay.paystack ? 'paystack' : 'transfer',
   })
@@ -69,7 +73,34 @@ function CheckoutForm({
   const subtotal = lines.reduce((sum, l) => sum + l.unit_price * l.qty, 0)
   const zone = zones.find((z) => z.id === form.zone_id)
   const deliveryFee = form.fulfilment === 'delivery' && zone ? zone.fee : 0
-  const total = subtotal + deliveryFee
+  const [codeInput, setCodeInput] = useState('')
+  const [applied, setApplied] = useState<{ code: string; amount: number; label: string } | null>(null)
+  const [codeBusy, setCodeBusy] = useState(false)
+  const [codeError, setCodeError] = useState('')
+  const discount = applied ? Math.min(applied.amount, subtotal) : 0
+  const total = subtotal + deliveryFee - discount
+
+  async function applyCode() {
+    if (!codeInput.trim()) return
+    setCodeBusy(true)
+    setCodeError('')
+    try {
+      const r = await checkDiscount({ data: codeInput })
+      setApplied(r)
+      set('discount_code', r.code)
+    } catch (err) {
+      setApplied(null)
+      set('discount_code', '')
+      setCodeError(err instanceof Error ? err.message : 'That code isn’t valid.')
+    } finally {
+      setCodeBusy(false)
+    }
+  }
+  function removeCode() {
+    setApplied(null)
+    setCodeInput('')
+    set('discount_code', '')
+  }
   const blockedSet = useMemo(() => new Map(blocked.map((b) => [b.date, b.reason])), [blocked])
   const dateBlocked = blockedSet.has(form.needed_date)
 
@@ -78,6 +109,7 @@ function CheckoutForm({
     setError('')
     if (form.fulfilment === 'delivery' && !form.zone_id) return setError('Please choose your delivery area.')
     if (dateBlocked) return setError('We’re fully booked on that date. Please choose another.')
+    if (slots.length && !form.time_slot) return setError('Please choose a time for your order.')
     setBusy(true)
     try {
       const r = await placeOrder({ data: { ...form, zone_id: form.fulfilment === 'delivery' ? form.zone_id : null } })
@@ -152,6 +184,17 @@ function CheckoutForm({
                   </p>
                 )}
               </div>
+              {slots.length > 0 && (
+                <div>
+                  <label htmlFor="co-slot" className={label}>{form.fulfilment === 'delivery' ? 'Delivery time' : 'Pickup time'}</label>
+                  <select id="co-slot" required className={input} value={form.time_slot} onChange={(e) => set('time_slot', e.target.value)}>
+                    <option value="">Choose a time</option>
+                    {slots.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label htmlFor="co-phone" className={label}>Phone on the day</label>
                 <input id="co-phone" type="tel" required className={input} value={form.contact_phone} onChange={(e) => set('contact_phone', e.target.value)} />
@@ -198,7 +241,7 @@ function CheckoutForm({
               <li key={l.id} className="flex justify-between gap-3 text-sm">
                 <span>
                   <span className="font-semibold">{l.qty} × {l.name}</span>
-                  <span className="block text-muted">{l.option_label}</span>
+                  <span className="block text-muted">{l.option_label}{customOneLine(l.custom_json) ? ` · ${customOneLine(l.custom_json)}` : ''}</span>
                 </span>
                 <span className="tabular">{formatNaira(l.unit_price * l.qty)}</span>
               </li>
@@ -210,8 +253,46 @@ function CheckoutForm({
               <span className="text-muted">Delivery{zone && form.fulfilment === 'delivery' ? ` (${zone.name})` : ''}</span>
               <span>{form.fulfilment === 'delivery' ? (zone ? formatNaira(deliveryFee) : 'Choose area') : 'Free pickup'}</span>
             </div>
+            {applied && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Discount ({applied.code}, {applied.label})</span>
+                <span>−{formatNaira(discount)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-line pt-2 text-xl font-bold"><span>Total</span><span>{formatNaira(total)}</span></div>
           </div>
+          <div className="border-t border-line pt-4">
+            {applied ? (
+              <p className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-semibold text-emerald-700">Code {applied.code} applied</span>
+                <button type="button" onClick={removeCode} className="font-semibold text-muted hover:text-highlight">Remove</button>
+              </p>
+            ) : (
+              <>
+                <label htmlFor="co-code" className="mb-1.5 block text-sm font-semibold">Discount code</label>
+                <div className="flex gap-2">
+                  <input
+                    id="co-code"
+                    className="min-w-0 flex-1 rounded-2xl border-0 bg-cream px-4 py-2.5 uppercase ring-1 ring-line focus:ring-2 focus:ring-brand"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        applyCode()
+                      }
+                    }}
+                    placeholder="e.g. XMAS10"
+                  />
+                  <button type="button" onClick={applyCode} disabled={codeBusy || !codeInput.trim()} className="btn btn-ghost !px-4 !py-2 text-sm text-cocoa">
+                    {codeBusy ? '…' : 'Apply'}
+                  </button>
+                </div>
+                {codeError && <p role="alert" className="mt-1.5 text-xs font-semibold text-highlight">{codeError}</p>}
+              </>
+            )}
+          </div>
+          {bank.perk_text && <p className="rounded-2xl bg-honey px-4 py-3 text-center text-sm font-semibold"><GiftIcon className="mr-1.5 inline h-4 w-4 align-[-3px]" />{bank.perk_text}</p>}
           {error && <p role="alert" className="rounded-2xl bg-highlight/10 px-4 py-3 text-sm font-semibold text-highlight">{error}</p>}
           <button type="submit" className="btn btn-primary w-full !py-4 text-base" disabled={busy}>
             {busy ? 'Placing your order…' : form.payment_method === 'paystack' ? `Pay ${formatNaira(total)}` : 'Place order'}
